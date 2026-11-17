@@ -11,6 +11,10 @@
     "dev": "concurrently -n \"user,admin\" -c \"cyan,magenta\" \"npm run dev --workspace=apps/user\" \"npm run dev --workspace=apps/admin\"",
     "dev:user": "npm run dev --workspace=apps/user",
     "dev:admin": "npm run dev --workspace=apps/admin",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "migrate": "npm run migrate --workspace=@carepal/shared",
+    "seed": "npm run seed --workspace=@carepal/shared",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --check ."
@@ -27,6 +31,9 @@
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
-    "esbuild@0.25.12": true
+    "esbuild@0.25.12": true,
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
   }
 }

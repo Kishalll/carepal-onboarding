@@ -10,30 +10,67 @@ The system consists of two separate applications connected to a single PostgreSQ
 
 ## Prerequisites
 
-- Node.js v20+ (developed on v26.13.1)
+- Docker and Docker Compose
+- Node.js v20+ (optional if running purely through Docker)
 - npm v10+
-- Docker and Docker Compose (for PostgreSQL and Mailpit)
 
-## Quick Start (Development)
+## Quick Start (Docker - Recommended)
 
-1. Install dependencies:
+1. Start all services with one command:
+   ```bash
+   docker compose up -d
+   ```
+   This builds and starts:
+   - PostgreSQL 16 on port 5432
+   - Mailpit email inbox on port 8025 (SMTP port 1025)
+   - Candidate Application on http://localhost:3000
+   - Admin Operations Application on http://localhost:3001
+
+2. Access the applications:
+   - Candidate Portal: http://localhost:3000
+   - Admin Portal: http://localhost:3001
+   - Mailpit Web Inbox: http://localhost:8025
+
+3. Default Admin Credentials:
+   - Email: `admin@thecarepal.test`
+   - Password: `CarePalAdmin2026!`
+
+4. Database Migrations and Seeding:
+   The database can be migrated and populated with 40+ synthetic candidates anytime:
+   ```bash
+   npm run migrate
+   npm run seed
+   ```
+
+## Alternative: Running Locally with npm
+
+If you prefer running Node.js directly on your host machine for development:
+
+1. Start PostgreSQL and Mailpit:
+   ```bash
+   docker compose up -d postgres mailpit
+   ```
+
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-2. Start development servers:
+3. Run migrations and seed:
+   ```bash
+   npm run migrate
+   npm run seed
+   ```
+
+4. Start both applications:
    ```bash
    npm run dev
    ```
 
-3. Open in your browser:
-   - Candidate Portal: http://localhost:3000
-   - Admin Portal: http://localhost:3001
-
-## Workspace Layout
+## Workspace Structure
 
 - `apps/user`: Candidate portal (Express + Vite React on port 3000)
 - `apps/admin`: Operations portal (Express + Vite React on port 3001)
-- `packages/shared`: Shared database schema, Zod validators, email client, and config
-- `packages/ui`: Shared Tailwind preset, design tokens, and UI components
-- `storage/uploads`: Local directory for uploaded candidate documents (git-ignored)
+- `packages/shared`: Shared database models (Prisma), validation schemas, email module, and config lists
+- `packages/ui`: Shared Tailwind styling preset, design tokens, and reusable components
+- `storage/uploads`: Local directory for uploaded candidate files (git-ignored)

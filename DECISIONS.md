@@ -7,4 +7,14 @@ This document records the technical choices made during development, the alterna
 - Choice: npm workspaces with two standalone apps (`apps/user` on port 3000, `apps/admin` on port 3001) and two shared packages (`packages/shared`, `packages/ui`).
 - Rationale: npm workspaces comes built into Node.js with zero extra tooling to install. It keeps shared types, database models, and validation logic in one place without requiring package publishing.This also improves security by isoloating admin code, cookies , failures etc
 
+### 2) PostgreSQL with Prisma ORM
+- Choice: PostgreSQL 16 shared between both apps, accessed via Prisma ORM located in `packages/shared`.
+- Rationale: Prisma provides end to end type safety with auto-generated TypeScript types, declarative migrations, and relational integrity. Storing models in a shared package avoids code duplication between user and admin services.
+
+### 3) Unified Docker Compose Setup
+- Choice: Containerized both the user app and admin app in `docker-compose.yml` alongside PostgreSQL and Mailpit with live code volume mounts.
+- Rationale: Enables a single `docker compose up` command to launch the entire full-stack ecosystem with zero manual process orchestration while preserving live code editing.
+
+
+
 

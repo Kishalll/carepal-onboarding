@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATIONS
+}
+
+enum Stage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  VERIFIED
+  ONBOARDED
+  REJECTED
+}
+
+enum Qualification {
+  GNM
+  ANM
+  B_SC_NURSING
+  TRAINED_CAREGIVER
+}
+
+enum AvailabilityType {
+  FULL_TIME
+  PART_TIME
+  LIVE_IN
+  NIGHT_SHIFTS
+  WEEKENDS
+}
+
+enum DocumentCategory {
+  ID_PROOF
+  CERTIFICATE
+  PHOTO
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REUPLOAD_REQUESTED
+}
+
+enum InterviewMode {
+  PHONE
+  VIDEO
+  IN_PERSON
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  role         Role          @default(OPERATIONS)
+  sessions     Session[]
+  notes        Note[]
+  stageChanges StageHistory[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("sessions")
+}
+
+model Candidate {
+  id                        String             @id @default(uuid())
+  applicationId             String             @unique
+  fullName                  String
+  phone                     String             @unique
+  email                     String
+  dateOfBirth               DateTime
+  city                      String
+  preferredLanguage         String             @default("en")
+  qualification             Qualification
+  councilRegistrationNumber String?
+  experienceYears           Int
+  previousWorkNote          String?
+  skills                    String[]
+  languages                 String[]
+  preferredCities           String[]
+  availabilityType          AvailabilityType
+  earliestStartDate         DateTime
+  stage                     Stage              @default(APPLIED)
+  stageUpdatedAt            DateTime           @default(now())
+  consentGiven              Boolean            @default(false)
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+
+  documents                 Document[]
+  checklistItems            ChecklistItem[]
+  notes                     Note[]
+  stageHistory              StageHistory[]
+  emailLogs                 EmailLog[]
+  interviewSlot             InterviewSlot?
+
+  @@index([stage])
+  @@index([city])
+  @@index([phone])
+  @@index([email])
+  @@index([createdAt])
+  @@map("candidates")
+}
+
+model Document {
+  id           String             @id @default(uuid())
+  candidateId  String
+  candidate    Candidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  category     DocumentCategory
+  idType       String?
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  status       VerificationStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
+
+  @@index([candidateId])
+  @@map("documents")
+}
+
+model ChecklistItem {
+  id          String             @id @default(uuid())
+  candidateId String
+  candidate   Candidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  code        String
+  label       String
+  required    Boolean            @default(true)
+  status      VerificationStatus @default(PENDING)
+  remark      String?
+  updatedBy   String?
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([candidateId, code])
+  @@index([candidateId])
+  @@map("checklist_items")
+}
+
+model Note {
+  id          String    @id @default(uuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  authorName  String
+  content     String
+  createdAt   DateTime  @default(now())
+
+  @@index([candidateId])
+  @@map("notes")
+}
+
+model StageHistory {
+  id            String    @id @default(uuid())
+  candidateId   String
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  fromStage     Stage
+  toStage       Stage
+  reasonNote    String?
+  changedById   String
+  changedByName String
+  changedBy     User      @relation(fields: [changedById], references: [id])
+  createdAt     DateTime  @default(now())
+
+  @@index([candidateId])
+  @@map("stage_histories")
+}
+
+model EmailLog {
+  id             String    @id @default(uuid())
+  candidateId    String
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  recipientEmail String
+  stage          Stage
+  subject        String
+  status         String
+  error          String?
+  sentAt         DateTime  @default(now())
+
+  @@index([candidateId])
+  @@map("email_logs")
+}
+
+model InterviewSlot {
+  id              String        @id @default(uuid())
+  startTime       DateTime
+  endTime         DateTime
+  interviewerName String
+  mode            InterviewMode @default(VIDEO)
+  candidateId     String?       @unique
+  candidate       Candidate?    @relation(fields: [candidateId], references: [id])
+  bookingToken    String        @unique
+  bookedAt        DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([bookingToken])
+  @@map("interview_slots")
+}

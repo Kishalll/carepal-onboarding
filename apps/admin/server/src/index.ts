@@ -31,6 +31,7 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: { port: 24679 },
+        host: '0.0.0.0',
       },
       appType: 'spa',
       root: path.resolve(__dirname, '../../client'),
@@ -44,7 +45,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Admin app running at http://localhost:${PORT}`);
   });
 }
