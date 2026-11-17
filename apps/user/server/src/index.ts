@@ -3,8 +3,15 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import { verifyTurnstile } from './middleware/turnstile.js';
 import { submitApplication } from './controllers/applicationController.js';
+import {
+  getCandidateDocuments,
+  uploadCandidateDocument,
+  deleteCandidateDocument,
+  viewPrivateDocument,
+} from './controllers/documentController.js';
 
 dotenv.config();
 
@@ -40,8 +47,62 @@ async function startServer() {
     });
   });
 
+  // Multer upload handler (in-memory buffer, max 5MB)
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5 MB
+    },
+  });
+
+  const applicationUpload = upload.fields([
+    { name: 'idProof', maxCount: 1 },
+    { name: 'photo', maxCount: 1 },
+    { name: 'certificates', maxCount: 5 },
+  ]);
+
   // Application submission endpoint
-  app.post('/api/applications', applicationLimiter, verifyTurnstile, submitApplication);
+  app.post(
+    '/api/applications',
+    applicationLimiter,
+    applicationUpload,
+    verifyTurnstile,
+    submitApplication
+  );
+
+  // Candidate document endpoints
+  app.get('/api/applications/:applicationId/documents', getCandidateDocuments);
+  app.post(
+    '/api/applications/:applicationId/documents',
+    upload.single('file'),
+    uploadCandidateDocument
+  );
+  app.delete(
+    '/api/applications/:applicationId/documents/:documentId',
+    deleteCandidateDocument
+  );
+
+  // Private document viewing (HMAC-signed short-lived URLs)
+  app.get('/api/documents/view/*', viewPrivateDocument);
+
+  // Multer error handler for clean JSON responses
+  app.use(
+    (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        res.status(400).json({
+          error: 'file_too_large',
+          message: 'File size exceeds the 5 MB limit. Please compress or choose a smaller file.',
+        });
+        return;
+      }
+      next(err);
+    }
+  );
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');

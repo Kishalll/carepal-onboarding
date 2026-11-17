@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -26,6 +26,11 @@ import {
   Phone,
   Mail,
   User,
+  UploadCloud,
+  FileText,
+  Camera,
+  Trash2,
+  FileCheck2,
 } from 'lucide-react';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
 
@@ -96,6 +101,55 @@ export const ApplyForm: React.FC = () => {
   const [submittedAppId, setSubmittedAppId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>('');
+
+  // Document upload state for Step 4
+  const [idProofFile, setIdProofFile] = useState<File | null>(null);
+  const [idType, setIdType] = useState('AADHAAR');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [certificateFiles, setCertificateFiles] = useState<File[]>([]);
+
+  // Drag over states
+  const [dragActiveId, setDragActiveId] = useState(false);
+  const [dragActivePhoto, setDragActivePhoto] = useState(false);
+  const [dragActiveCert, setDragActiveCert] = useState(false);
+
+  // Hidden file inputs
+  const idInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const certInputRef = useRef<HTMLInputElement>(null);
+
+  // Preview object URL lifecycle
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
+
+  const validateClientFile = (file: File): string | null => {
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      return `File size is ${mb} MB. Maximum allowed size is 5 MB.`;
+    }
+    const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+    const lower = file.name.toLowerCase();
+    const hasValidExt = validExtensions.some((ext) => lower.endsWith(ext));
+    if (!hasValidExt) {
+      return 'Only PDF, JPEG, and PNG files are allowed.';
+    }
+    return null;
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -203,6 +257,13 @@ export const ApplyForm: React.FC = () => {
         errors.earliestStartDate = 'Please select your earliest start date';
       }
     } else if (currentStep === 3) {
+      if (!idProofFile) {
+        errors.idProof = 'Please upload an official identity proof document';
+      }
+      if (!photoFile) {
+        errors.photo = 'Please upload a passport-size photograph';
+      }
+    } else if (currentStep === 4) {
       if (!formData.consentGiven) {
         errors.consentGiven = 'Consent to verification is required to submit your application';
       }
@@ -217,7 +278,7 @@ export const ApplyForm: React.FC = () => {
 
   const handleNext = () => {
     if (validateCurrentStep()) {
-      setCurrentStep((s) => Math.min(3, s + 1));
+      setCurrentStep((s) => Math.min(4, s + 1));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -235,14 +296,44 @@ export const ApplyForm: React.FC = () => {
     setDuplicatePhoneNotice(null);
 
     try {
+      const payload = new FormData();
+      payload.append('fullName', formData.fullName);
+      payload.append('phone', formData.phone);
+      payload.append('email', formData.email);
+      payload.append('dateOfBirth', formData.dateOfBirth);
+      payload.append('city', formData.city);
+      payload.append('preferredLanguage', formData.preferredLanguage);
+      payload.append('qualification', formData.qualification);
+      if (formData.councilRegistrationNumber) {
+        payload.append('councilRegistrationNumber', formData.councilRegistrationNumber);
+      }
+      payload.append('experienceYears', String(formData.experienceYears));
+      if (formData.previousWorkNote) {
+        payload.append('previousWorkNote', formData.previousWorkNote);
+      }
+      payload.append('skills', JSON.stringify(formData.skills));
+      payload.append('languages', JSON.stringify(formData.languages));
+      payload.append('preferredCities', JSON.stringify(formData.preferredCities));
+      payload.append('availabilityType', formData.availabilityType);
+      payload.append('earliestStartDate', formData.earliestStartDate);
+      payload.append('consentGiven', String(formData.consentGiven));
+      payload.append('website_hp', formData.website_hp);
+      payload.append('turnstileToken', turnstileToken);
+
+      if (idProofFile) {
+        payload.append('idProof', idProofFile);
+        payload.append('idType', idType);
+      }
+      if (photoFile) {
+        payload.append('photo', photoFile);
+      }
+      for (const cert of certificateFiles) {
+        payload.append('certificates', cert);
+      }
+
       const response = await fetch('/api/applications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          experienceYears: Number(formData.experienceYears),
-          turnstileToken,
-        }),
+        body: payload,
       });
 
       const data = await response.json();
@@ -362,7 +453,16 @@ export const ApplyForm: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 flex justify-center">
+          <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link to={`/careers/apply/${submittedAppId}/documents`}>
+              <Button
+                variant="primary"
+                size="md"
+                icon={<ArrowRight className="w-4 h-4" />}
+              >
+                Upload Verification Documents Now
+              </Button>
+            </Link>
             <Link to="/">
               <Button variant="outline" size="md">
                 {t('apply.success.backHome')}
@@ -379,6 +479,7 @@ export const ApplyForm: React.FC = () => {
     { id: 2, title: t('apply.step2.title'), description: t('apply.step2.desc') },
     { id: 3, title: t('apply.step3.title'), description: t('apply.step3.desc') },
     { id: 4, title: t('apply.step4.title'), description: t('apply.step4.desc') },
+    { id: 5, title: t('apply.step5.title'), description: t('apply.step5.desc') },
   ];
 
   const cityOptions = CITIES.map((c) => ({ value: c, label: c }));
@@ -673,7 +774,7 @@ export const ApplyForm: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 4: Review & Consent */}
+          {/* STEP 4: Document Upload */}
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="border-b border-gray-100 pb-4">
@@ -683,11 +784,363 @@ export const ApplyForm: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-0.5">{t('apply.step4.desc')}</p>
               </div>
 
+              {/* Slot 1: ID Proof */}
+              <div className="p-4 rounded-2xl bg-white border border-gray-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCheck2 className="w-5 h-5 text-brand-action" />
+                    <span className="text-sm font-heading font-semibold text-brand-heading">
+                      {t('apply.step4.idProofTitle')}
+                    </span>
+                  </div>
+                  {idProofFile ? (
+                    <Badge label="Attached" variant="green" size="sm" />
+                  ) : (
+                    <Badge label="Required" variant="neutral" size="sm" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">{t('apply.step4.idProofDesc')}</p>
+
+                <div className="max-w-xs">
+                  <Select
+                    label="Identity Document Type"
+                    options={[
+                      { value: 'AADHAAR', label: 'Aadhaar Card (Masked)' },
+                      { value: 'VOTER_ID', label: 'Voter ID' },
+                      { value: 'PASSPORT', label: 'Passport' },
+                      { value: 'DRIVING_LICENSE', label: 'Driving License' },
+                    ]}
+                    value={idType}
+                    onChange={(e) => setIdType(e.target.value)}
+                  />
+                </div>
+
+                {idProofFile ? (
+                  <div className="p-3 rounded-xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 truncate">
+                      <FileText className="w-4 h-4 text-red-600 shrink-0" />
+                      <span className="text-xs font-semibold text-brand-heading truncate">
+                        {idProofFile.name}
+                      </span>
+                      <span className="text-[11px] text-gray-400 shrink-0">
+                        ({formatFileSize(idProofFile.size)})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIdProofFile(null)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-white"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragActiveId(true);
+                    }}
+                    onDragLeave={() => setDragActiveId(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragActiveId(false);
+                      if (e.dataTransfer.files?.[0]) {
+                        const err = validateClientFile(e.dataTransfer.files[0]);
+                        if (err) {
+                          setFieldErrors((prev) => ({ ...prev, idProof: err }));
+                        } else {
+                          setIdProofFile(e.dataTransfer.files[0]);
+                          setFieldErrors((prev) => {
+                            const c = { ...prev };
+                            delete c.idProof;
+                            return c;
+                          });
+                        }
+                      }
+                    }}
+                    onClick={() => idInputRef.current?.click()}
+                    className={`p-5 rounded-2xl border-2 border-dashed text-center cursor-pointer transition-colors ${
+                      dragActiveId
+                        ? 'border-brand-action bg-blue-50/50'
+                        : 'border-gray-200 hover:border-brand-action/50 hover:bg-gray-50/50'
+                    }`}
+                  >
+                    <UploadCloud className="w-5 h-5 text-brand-action mx-auto mb-1.5" />
+                    <span className="text-xs font-semibold text-brand-heading block">
+                      Click to choose or drag ID proof file
+                    </span>
+                    <span className="text-[11px] text-gray-400 block mt-0.5">
+                      PDF, JPEG, or PNG up to 5 MB
+                    </span>
+                  </div>
+                )}
+                {fieldErrors.idProof && (
+                  <p className="text-xs text-red-600 font-medium">{fieldErrors.idProof}</p>
+                )}
+                <input
+                  id="id-proof-input"
+                  ref={idInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      const err = validateClientFile(e.target.files[0]);
+                      if (err) {
+                        setFieldErrors((prev) => ({ ...prev, idProof: err }));
+                      } else {
+                        setIdProofFile(e.target.files[0]);
+                        setFieldErrors((prev) => {
+                          const c = { ...prev };
+                          delete c.idProof;
+                          return c;
+                        });
+                      }
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Slot 2: Passport Photo */}
+              <div className="p-4 rounded-2xl bg-white border border-gray-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-brand-action" />
+                    <span className="text-sm font-heading font-semibold text-brand-heading">
+                      {t('apply.step4.photoTitle')}
+                    </span>
+                  </div>
+                  {photoFile ? (
+                    <Badge label="Attached" variant="green" size="sm" />
+                  ) : (
+                    <Badge label="Required" variant="neutral" size="sm" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">{t('apply.step4.photoDesc')}</p>
+
+                {photoFile ? (
+                  <div className="p-3 rounded-xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 truncate">
+                      {photoPreviewUrl ? (
+                        <img
+                          src={photoPreviewUrl}
+                          alt="Passport Preview"
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-300 shrink-0"
+                        />
+                      ) : (
+                        <Camera className="w-5 h-5 text-brand-action shrink-0" />
+                      )}
+                      <span className="text-xs font-semibold text-brand-heading truncate">
+                        {photoFile.name}
+                      </span>
+                      <span className="text-[11px] text-gray-400 shrink-0">
+                        ({formatFileSize(photoFile.size)})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoFile(null)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-white"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragActivePhoto(true);
+                    }}
+                    onDragLeave={() => setDragActivePhoto(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragActivePhoto(false);
+                      if (e.dataTransfer.files?.[0]) {
+                        const err = validateClientFile(e.dataTransfer.files[0]);
+                        if (err) {
+                          setFieldErrors((prev) => ({ ...prev, photo: err }));
+                        } else {
+                          setPhotoFile(e.dataTransfer.files[0]);
+                          setFieldErrors((prev) => {
+                            const c = { ...prev };
+                            delete c.photo;
+                            return c;
+                          });
+                        }
+                      }
+                    }}
+                    onClick={() => photoInputRef.current?.click()}
+                    className={`p-5 rounded-2xl border-2 border-dashed text-center cursor-pointer transition-colors ${
+                      dragActivePhoto
+                        ? 'border-brand-action bg-blue-50/50'
+                        : 'border-gray-200 hover:border-brand-action/50 hover:bg-gray-50/50'
+                    }`}
+                  >
+                    <Camera className="w-5 h-5 text-brand-action mx-auto mb-1.5" />
+                    <span className="text-xs font-semibold text-brand-heading block">
+                      Click to choose or drag passport photo
+                    </span>
+                    <span className="text-[11px] text-gray-400 block mt-0.5">
+                      JPEG or PNG up to 5 MB
+                    </span>
+                  </div>
+                )}
+                {fieldErrors.photo && (
+                  <p className="text-xs text-red-600 font-medium">{fieldErrors.photo}</p>
+                )}
+                <input
+                  id="photo-input"
+                  ref={photoInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      const err = validateClientFile(e.target.files[0]);
+                      if (err) {
+                        setFieldErrors((prev) => ({ ...prev, photo: err }));
+                      } else {
+                        setPhotoFile(e.target.files[0]);
+                        setFieldErrors((prev) => {
+                          const c = { ...prev };
+                          delete c.photo;
+                          return c;
+                        });
+                      }
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Slot 3: Certificates */}
+              <div className="p-4 rounded-2xl bg-white border border-gray-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-brand-action" />
+                    <span className="text-sm font-heading font-semibold text-brand-heading">
+                      {t('apply.step4.certsTitle')}
+                    </span>
+                  </div>
+                  <Badge
+                    label={`${certificateFiles.length}/5 attached`}
+                    variant={certificateFiles.length > 0 ? 'blue' : 'neutral'}
+                    size="sm"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">{t('apply.step4.certsDesc')}</p>
+
+                {certificateFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {certificateFiles.map((cert, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <FileText className="w-4 h-4 text-brand-action shrink-0" />
+                          <span className="text-xs font-semibold text-brand-heading truncate">
+                            {cert.name}
+                          </span>
+                          <span className="text-[11px] text-gray-400 shrink-0">
+                            ({formatFileSize(cert.size)})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCertificateFiles((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-white"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {certificateFiles.length < 5 && (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragActiveCert(true);
+                    }}
+                    onDragLeave={() => setDragActiveCert(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragActiveCert(false);
+                      if (e.dataTransfer.files?.[0]) {
+                        const err = validateClientFile(e.dataTransfer.files[0]);
+                        if (err) {
+                          setFieldErrors((prev) => ({ ...prev, certificates: err }));
+                        } else {
+                          setCertificateFiles((prev) => [...prev, e.dataTransfer.files[0]]);
+                        }
+                      }
+                    }}
+                    onClick={() => certInputRef.current?.click()}
+                    className={`p-4 rounded-xl border-2 border-dashed text-center cursor-pointer transition-colors ${
+                      dragActiveCert
+                        ? 'border-brand-action bg-blue-50/50'
+                        : 'border-gray-200 hover:border-brand-action/50 hover:bg-gray-50/50'
+                    }`}
+                  >
+                    <UploadCloud className="w-4 h-4 text-brand-action mx-auto mb-1" />
+                    <span className="text-xs font-semibold text-brand-heading block">
+                      Add qualification certificate ({5 - certificateFiles.length} slots left)
+                    </span>
+                    <span className="text-[11px] text-gray-400 block mt-0.5">
+                      PDF, JPEG, or PNG up to 5 MB
+                    </span>
+                  </div>
+                )}
+                {fieldErrors.certificates && (
+                  <p className="text-xs text-red-600 font-medium">
+                    {fieldErrors.certificates}
+                  </p>
+                )}
+                <input
+                  id="cert-input"
+                  ref={certInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      const err = validateClientFile(e.target.files[0]);
+                      if (err) {
+                        setFieldErrors((prev) => ({ ...prev, certificates: err }));
+                      } else {
+                        setCertificateFiles((prev) => [...prev, e.target.files[0]]);
+                      }
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Review & Consent */}
+          {currentStep === 4 && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="border-b border-gray-100 pb-4">
+                <h2 className="text-lg font-heading font-semibold text-brand-heading">
+                  {t('apply.step5.title')}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">{t('apply.step5.desc')}</p>
+              </div>
+
               {/* Summary Card */}
               <div className="p-5 rounded-2xl bg-gray-50/80 border border-gray-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-heading font-semibold text-brand-heading">
-                    {t('apply.step4.summaryHeading')}
+                    {t('apply.step5.summaryHeading')}
                   </h3>
                   <Badge label={formData.qualification} variant="blue" size="sm" />
                 </div>
@@ -695,19 +1148,27 @@ export const ApplyForm: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
                     <span className="text-gray-400 block">Candidate Name</span>
-                    <span className="font-semibold text-brand-heading text-sm">{formData.fullName}</span>
+                    <span className="font-semibold text-brand-heading text-sm">
+                      {formData.fullName}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Mobile & Email</span>
-                    <span className="font-medium text-brand-heading">{formData.phone} | {formData.email}</span>
+                    <span className="font-medium text-brand-heading">
+                      {formData.phone} | {formData.email}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Residence City & Experience</span>
-                    <span className="font-medium text-brand-heading">{formData.city} ({formData.experienceYears} years)</span>
+                    <span className="font-medium text-brand-heading">
+                      {formData.city} ({formData.experienceYears} years)
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Availability</span>
-                    <span className="font-medium text-brand-heading">{formData.availabilityType}</span>
+                    <span className="font-medium text-brand-heading">
+                      {formData.availabilityType}
+                    </span>
                   </div>
                 </div>
 
@@ -719,6 +1180,50 @@ export const ApplyForm: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Attached Documents Overview */}
+                <div className="pt-3 border-t border-gray-200/60">
+                  <span className="text-gray-400 text-xs block mb-2 font-medium">
+                    {t('apply.step5.attachedDocs')}:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-xl bg-white border border-gray-200/80 flex items-center gap-2">
+                      <FileCheck2 className="w-4 h-4 text-brand-action shrink-0" />
+                      <div className="truncate">
+                        <span className="font-semibold block truncate">
+                          {idProofFile?.name || 'No file'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{idType}</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-gray-200/80 flex items-center gap-2">
+                      {photoPreviewUrl ? (
+                        <img
+                          src={photoPreviewUrl}
+                          alt="Preview"
+                          className="w-7 h-7 rounded-lg object-cover shrink-0"
+                        />
+                      ) : (
+                        <Camera className="w-4 h-4 text-brand-action shrink-0" />
+                      )}
+                      <div className="truncate">
+                        <span className="font-semibold block truncate">
+                          {photoFile?.name || 'No photo'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">Passport Photo</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-gray-200/80 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-brand-action shrink-0" />
+                      <div className="truncate">
+                        <span className="font-semibold block truncate">
+                          {certificateFiles.length} Certificate{certificateFiles.length === 1 ? '' : 's'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">Qualification</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Turnstile Bot Verification Box */}
@@ -728,7 +1233,7 @@ export const ApplyForm: React.FC = () => {
                     <ShieldCheck className="w-5 h-5 text-brand-action" />
                     <div>
                       <span className="text-xs font-semibold text-brand-heading block">
-                        {t('apply.step4.securityCheck')}
+                        {t('apply.step5.securityCheck')}
                       </span>
                       <span className="text-[11px] text-gray-500">
                         Cloudflare Turnstile Verification
@@ -765,7 +1270,7 @@ export const ApplyForm: React.FC = () => {
                     className="w-4 h-4 rounded mt-0.5 text-brand-action focus:ring-brand-action border-gray-300"
                   />
                   <span className="text-xs text-gray-600 leading-relaxed">
-                    {t('apply.step4.consentText')}
+                    {t('apply.step5.consentText')}
                   </span>
                 </label>
                 {fieldErrors.consentGiven && (
@@ -793,7 +1298,7 @@ export const ApplyForm: React.FC = () => {
               <div />
             )}
 
-            {currentStep < 3 ? (
+            {currentStep < 4 ? (
               <Button
                 type="button"
                 variant="primary"

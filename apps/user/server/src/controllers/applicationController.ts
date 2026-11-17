@@ -1,6 +1,13 @@
 import { Request, Response } from 'express';
-import { prisma, applicationSchema, normalizeIndianPhone } from '@carepal/shared';
-import { Qualification, Stage, VerificationStatus } from '@prisma/client';
+import path from 'node:path';
+import {
+  prisma,
+  applicationSchema,
+  normalizeIndianPhone,
+  storageAdapter,
+  validateDocumentFile,
+} from '@carepal/shared';
+import { Qualification, Stage, VerificationStatus, DocumentCategory } from '@prisma/client';
 
 export async function submitApplication(req: Request, res: Response): Promise<void> {
   // 1. Honeypot check: If the hidden honeypot field has a value, silently reject bot
@@ -13,8 +20,38 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
     return;
   }
 
-  // 2. Validate input schema with Zod
-  const validation = applicationSchema.safeParse(req.body);
+  // 2. Normalize and parse potential FormData fields
+  const rawBody = { ...req.body };
+  if (typeof rawBody.skills === 'string') {
+    try {
+      rawBody.skills = JSON.parse(rawBody.skills);
+    } catch {
+      // Keep as-is if parsing fails
+    }
+  }
+  if (typeof rawBody.languages === 'string') {
+    try {
+      rawBody.languages = JSON.parse(rawBody.languages);
+    } catch {
+      // Keep as-is
+    }
+  }
+  if (typeof rawBody.preferredCities === 'string') {
+    try {
+      rawBody.preferredCities = JSON.parse(rawBody.preferredCities);
+    } catch {
+      // Keep as-is
+    }
+  }
+  if (rawBody.experienceYears !== undefined) {
+    rawBody.experienceYears = Number(rawBody.experienceYears);
+  }
+  if (typeof rawBody.consentGiven === 'string') {
+    rawBody.consentGiven = rawBody.consentGiven === 'true';
+  }
+
+  // 3. Validate input schema with Zod
+  const validation = applicationSchema.safeParse(rawBody);
   if (!validation.success) {
     const formattedErrors = validation.error.format();
     res.status(400).json({
@@ -34,6 +71,49 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
       message: 'Please enter a valid 10-digit Indian mobile number.',
     });
     return;
+  }
+
+  // 4. Validate any attached multipart files
+  const filesMap = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const idProofFiles = filesMap?.idProof || [];
+  const photoFiles = filesMap?.photo || [];
+  const certificateFiles = filesMap?.certificates || [];
+
+  const filesToProcess: {
+    file: Express.Multer.File;
+    category: DocumentCategory;
+    idType?: string;
+  }[] = [];
+
+  if (idProofFiles.length > 0) {
+    filesToProcess.push({
+      file: idProofFiles[0],
+      category: DocumentCategory.ID_PROOF,
+      idType: (req.body.idType as string) || 'AADHAAR',
+    });
+  }
+  if (photoFiles.length > 0) {
+    filesToProcess.push({
+      file: photoFiles[0],
+      category: DocumentCategory.PHOTO,
+    });
+  }
+  for (const certFile of certificateFiles) {
+    filesToProcess.push({
+      file: certFile,
+      category: DocumentCategory.CERTIFICATE,
+    });
+  }
+
+  for (const item of filesToProcess) {
+    const fileVal = validateDocumentFile(item.file);
+    if (!fileVal.valid) {
+      res.status(400).json({
+        error: 'invalid_file',
+        message: `${item.file.originalname}: ${fileVal.error}`,
+      });
+      return;
+    }
   }
 
   try {
@@ -136,6 +216,31 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
           status: 'SENT',
         },
       });
+
+      // Persist attached documents if provided
+      for (const item of filesToProcess) {
+        const ext = path.extname(item.file.originalname).toLowerCase();
+        const sanitizedBase = path
+          .basename(item.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9_-]/g, '_')
+          .slice(0, 40);
+        const storageKey = `${newCandidate.id}/${item.category.toLowerCase()}_${Date.now()}_${sanitizedBase}${ext}`;
+
+        await storageAdapter.save(storageKey, item.file.buffer);
+
+        await tx.document.create({
+          data: {
+            candidateId: newCandidate.id,
+            category: item.category,
+            idType: item.category === DocumentCategory.ID_PROOF ? item.idType || 'AADHAAR' : null,
+            storageKey,
+            originalName: item.file.originalname,
+            mimeType: item.file.mimetype,
+            sizeBytes: item.file.size,
+            status: VerificationStatus.PENDING,
+          },
+        });
+      }
 
       return newCandidate;
     });

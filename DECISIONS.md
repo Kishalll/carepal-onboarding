@@ -15,4 +15,13 @@ This document records the technical choices made during development, the alterna
 - Choice: Containerized both the user app and admin app in `docker-compose.yml` alongside PostgreSQL and Mailpit with live code volume mounts.
 - Rationale: Enables a single `docker compose up` command to launch the entire full-stack ecosystem with zero manual process orchestration while preserving live code editing.
 
+### 4) Shared Zod Validation and Anti-Bot Form Pipeline
+- Choice: Single Zod schema in `packages/shared` enforcing identical validation rules on client and server, paired with normalized phone numbers, Cloudflare Turnstile token checks, and a hidden honeypot.
+- Rationale: Eliminates client and server schema drift, prevents spam and automated bot submissions, and ensures duplicate phone numbers are safely intercepted with clear user feedback.
+
+### 5) Private Document Storage and Magic-Byte Verification
+- Choice: Files are saved to a private storage directory outside the web root and served exclusively through short-lived HMAC-signed URLs (15-minute expiration). File uploads undergo server-side magic-byte header inspection (checking true binary headers for PDF, JPEG, and PNG).
+- Rationale: Storing files outside public web paths prevents direct enumeration or unauthorized scraping of sensitive identity documents. Magic-byte verification prevents renamed executable files or corrupted uploads from penetrating the pipeline.
+
+
 

@@ -70,9 +70,20 @@
       "startDate": "Earliest Available Start Date"
     },
     "step4": {
+      "title": "Document Upload",
+      "desc": "Upload ID proof, photo, and certificates",
+      "idProofTitle": "Identity Proof (Required)",
+      "idProofDesc": "Aadhaar (masked recommended), Voter ID, or Passport (max 5 MB)",
+      "photoTitle": "Passport Photograph (Required)",
+      "photoDesc": "Recent photo with clear face visibility (max 5 MB)",
+      "certsTitle": "Qualification & Nursing Certificates",
+      "certsDesc": "Degree, diploma, or caregiving certificates (1 to 5 files, max 5 MB each)"
+    },
+    "step5": {
       "title": "Review & Consent",
       "desc": "Confirm details and complete security check",
       "summaryHeading": "Application Summary",
+      "attachedDocs": "Attached Documents",
       "consentLabel": "Data processing and verification consent",
       "consentText": "I confirm that all provided details and credentials are true and accurate. I consent to TheCarePal verifying my background and qualifications.",
       "securityCheck": "Security Challenge",
