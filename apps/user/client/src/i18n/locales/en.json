@@ -1,0 +1,25 @@
+{
+  "brand": {
+    "name": "TheCarePal",
+    "tagline": "Trusted Care at Home, Peace of Mind",
+    "motto": "With warmth, skill, and heart."
+  },
+  "nav": {
+    "apply": "Apply Now",
+    "support": "Need Help?"
+  },
+  "hero": {
+    "title": "Join our care team",
+    "subtitle": "Tell us a little about yourself, it takes about 5 minutes."
+  },
+  "common": {
+    "saveDraft": "Save draft",
+    "next": "Continue",
+    "back": "Back",
+    "submit": "Submit Application",
+    "language": "Language",
+    "english": "English",
+    "hindi": "हिंदी (Hindi)",
+    "tamil": "தமிழ் (Tamil)"
+  }
+}

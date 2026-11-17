@@ -16,5 +16,3 @@ This document records the technical choices made during development, the alterna
 - Rationale: Enables a single `docker compose up` command to launch the entire full-stack ecosystem with zero manual process orchestration while preserving live code editing.
 
 
-
-
