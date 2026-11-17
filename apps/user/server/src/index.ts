@@ -2,6 +2,9 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
+import { verifyTurnstile } from './middleware/turnstile.js';
+import { submitApplication } from './controllers/applicationController.js';
 
 dotenv.config();
 
@@ -16,6 +19,18 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Rate limiter for application submissions
+  const applicationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // limit each IP to 20 requests per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'rate_limit_exceeded',
+      message: 'Too many applications submitted from this network. Please wait a few minutes.',
+    },
+  });
+
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
     res.json({
@@ -24,6 +39,9 @@ async function startServer() {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // Application submission endpoint
+  app.post('/api/applications', applicationLimiter, verifyTurnstile, submitApplication);
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');

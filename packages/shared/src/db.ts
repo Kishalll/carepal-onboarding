@@ -1,17 +1,21 @@
 import { PrismaClient } from '@prisma/client';
 
-declare global {
-  var prisma: PrismaClient | undefined;
-}
+const isNode = typeof window === 'undefined';
 
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-  });
+const globalForPrisma =
+  typeof globalThis !== 'undefined'
+    ? (globalThis as unknown as { prisma?: PrismaClient })
+    : {};
 
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
+export const prisma = isNode
+  ? globalForPrisma.prisma ||
+    new PrismaClient({
+      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    })
+  : (null as unknown as PrismaClient);
+
+if (isNode && process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
 }
 
 export default prisma;

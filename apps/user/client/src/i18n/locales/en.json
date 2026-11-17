@@ -14,12 +14,81 @@
   },
   "common": {
     "saveDraft": "Save draft",
+    "draftSaved": "Draft saved automatically",
+    "clearDraft": "Clear draft",
     "next": "Continue",
     "back": "Back",
     "submit": "Submit Application",
+    "submitting": "Submitting...",
     "language": "Language",
     "english": "English",
     "hindi": "हिंदी (Hindi)",
     "tamil": "தமிழ் (Tamil)"
+  },
+  "apply": {
+    "pageTitle": "Healthcare Career Application",
+    "pageSubtitle": "Join our network of verified home nurses and caregivers across India.",
+    "step1": {
+      "title": "Personal Details",
+      "desc": "Basic contact and identity information",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "As on official government ID",
+      "phone": "Mobile Number",
+      "phonePlaceholder": "10-digit number (e.g. 9876543210)",
+      "phoneHint": "We will send shift and interview updates here",
+      "email": "Email Address",
+      "emailPlaceholder": "name@example.com",
+      "dob": "Date of Birth",
+      "dobHint": "Must be 18 years or older",
+      "city": "Current City of Residence",
+      "cityPlaceholder": "Select your current city",
+      "language": "Preferred Language for Communication"
+    },
+    "step2": {
+      "title": "Qualifications & Skills",
+      "desc": "Training, experience, and competencies",
+      "qualification": "Primary Qualification",
+      "qualPlaceholder": "Select your healthcare qualification",
+      "council": "Nursing Council Registration Number",
+      "councilPlaceholder": "e.g. MNC-2020-123456 (Optional)",
+      "councilHint": "Applicable for GNM, ANM, and B.Sc Nursing graduates",
+      "experience": "Years of Experience",
+      "skills": "Caregiving Skills & Specializations",
+      "skillsHint": "Select all clinical and care services you provide",
+      "languages": "Languages Spoken",
+      "languagesHint": "Languages you can comfortably speak with patient families",
+      "workNote": "Previous Work Summary",
+      "workNotePlaceholder": "Brief note on hospitals, clinics, or home care cases you handled (Optional)"
+    },
+    "step3": {
+      "title": "Cities & Availability",
+      "desc": "Work preferences and schedule",
+      "preferredCities": "Preferred Work Cities",
+      "preferredCitiesHint": "Locations where you can take care assignments",
+      "availability": "Shift Availability Type",
+      "availPlaceholder": "Select your availability type",
+      "startDate": "Earliest Available Start Date"
+    },
+    "step4": {
+      "title": "Review & Consent",
+      "desc": "Confirm details and complete security check",
+      "summaryHeading": "Application Summary",
+      "consentLabel": "Data processing and verification consent",
+      "consentText": "I confirm that all provided details and credentials are true and accurate. I consent to TheCarePal verifying my background and qualifications.",
+      "securityCheck": "Security Challenge",
+      "turnstileNote": "Please complete the verification check before submitting."
+    },
+    "success": {
+      "title": "Application Received!",
+      "subtitle": "Thank you for applying to TheCarePal care network.",
+      "appId": "Your Application Reference ID",
+      "nextStepsTitle": "What happens next?",
+      "step1": "Our clinical operations team reviews your qualifications within 2-3 business days.",
+      "step2": "Shortlisted candidates receive an invitation to book a clinical interview slot.",
+      "step3": "Following verification, onboarded care staff receive identity badges and shift assignments.",
+      "copyId": "Copy Reference ID",
+      "copied": "Copied!",
+      "backHome": "Back to Careers Home"
+    }
   }
 }

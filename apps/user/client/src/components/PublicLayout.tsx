@@ -45,7 +45,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
           <div className="flex items-center gap-3">
             <nav className="flex items-center gap-1.5 sm:gap-2 mr-1">
               <Link
-                to="/"
+                to="/careers/apply"
                 className="text-sm font-semibold px-4 py-2 rounded-pill bg-brand-softBlueLight text-brand-deepBlue hover:bg-brand-softBlue/60 transition-colors"
               >
                 {t('nav.apply')}
