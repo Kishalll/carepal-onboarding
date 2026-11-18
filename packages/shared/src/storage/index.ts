@@ -2,19 +2,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 
-export interface StorageAdapter {
-  save(storageKey: string, buffer: Buffer): Promise<void>;
-  read(storageKey: string): Promise<Buffer | null>;
-  delete(storageKey: string): Promise<void>;
-  exists(storageKey: string): Promise<boolean>;
-  getAbsolutePath(storageKey: string): string;
-  generateSignedUrl(storageKey: string, expiresInMinutes?: number): string;
-  verifySignedUrl(storageKey: string, expires: number, signature: string): boolean;
-}
-
 const isNode = typeof window === 'undefined' && typeof process !== 'undefined';
 
-export class LocalStorageAdapter implements StorageAdapter {
+export class LocalStorageAdapter {
   private baseDir: string;
   private signingSecret: string;
   private urlPrefix: string;
@@ -116,6 +106,6 @@ export class LocalStorageAdapter implements StorageAdapter {
 }
 
 // Singleton storage instance for application use
-export const storageAdapter: StorageAdapter = isNode
+export const storageAdapter: LocalStorageAdapter = isNode
   ? new LocalStorageAdapter()
-  : ({} as StorageAdapter);
+  : ({} as LocalStorageAdapter);

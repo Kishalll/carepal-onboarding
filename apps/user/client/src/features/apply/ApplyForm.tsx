@@ -453,16 +453,7 @@ export const ApplyForm: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to={`/careers/apply/${submittedAppId}/documents`}>
-              <Button
-                variant="primary"
-                size="md"
-                icon={<ArrowRight className="w-4 h-4" />}
-              >
-                Upload Verification Documents Now
-              </Button>
-            </Link>
+          <div className="mt-8 pt-6 border-t border-gray-100 flex justify-center">
             <Link to="/">
               <Button variant="outline" size="md">
                 {t('apply.success.backHome')}
