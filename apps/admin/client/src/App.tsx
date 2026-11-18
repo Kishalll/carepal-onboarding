@@ -2,6 +2,9 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ToastProvider, Card, Badge, Button } from '@carepal/ui';
 import { AdminLayout } from './components/AdminLayout.js';
+import { ProtectedRoute } from './components/ProtectedRoute.js';
+import { AuthProvider } from './context/AuthContext.js';
+import { LoginPage } from './features/auth/LoginPage.js';
 import { Users, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 function DashboardOverview() {
@@ -110,13 +113,26 @@ function DashboardOverview() {
 export default function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-        <AdminLayout>
+      <AuthProvider>
+        <ToastProvider>
           <Routes>
-            <Route path="*" element={<DashboardOverview />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <Routes>
+                      <Route path="/" element={<DashboardOverview />} />
+                      <Route path="*" element={<DashboardOverview />} />
+                    </Routes>
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
-        </AdminLayout>
-      </ToastProvider>
+        </ToastProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

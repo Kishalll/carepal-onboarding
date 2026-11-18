@@ -1,7 +1,9 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 
@@ -15,6 +17,10 @@ async function startServer() {
   const app = express();
 
   app.use(express.json());
+  app.use(cookieParser());
+
+  // Auth routes
+  app.use('/api/auth', authRoutes);
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {

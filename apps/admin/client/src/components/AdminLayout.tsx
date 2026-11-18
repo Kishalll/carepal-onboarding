@@ -9,6 +9,7 @@ import {
   LogOut,
   Shield,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.js';
 
 interface NavItem {
   path: string;
@@ -18,6 +19,16 @@ interface NavItem {
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const { user, logout } = useAuth();
+
+  const userInitials = user?.name
+    ? user.name
+        .split(' ')
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'OA';
 
   const navItems: NavItem[] = [
     {
@@ -85,18 +96,23 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         {/* User profile section */}
         <div className="p-4 border-t border-gray-800/80">
           <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-brand-teal/20 text-brand-teal flex items-center justify-center text-xs font-bold">
-                OA
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-brand-teal/20 text-brand-teal flex items-center justify-center text-xs font-bold shrink-0">
+                {userInitials}
               </div>
-              <div>
-                <div className="text-xs font-semibold text-white">Operations Admin</div>
-                <div className="text-[10px] text-gray-400">admin@thecarepal.test</div>
+              <div className="min-w-0 truncate">
+                <div className="text-xs font-semibold text-white truncate">
+                  {user?.name || 'Staff User'}
+                </div>
+                <div className="text-[10px] text-gray-400 truncate">
+                  {user?.email || 'admin@thecarepal.test'}
+                </div>
               </div>
             </div>
             <button
               type="button"
-              className="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              onClick={() => logout()}
+              className="text-gray-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ml-1"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -129,6 +145,14 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-teal-50 text-teal-800 text-xs font-semibold border border-teal-200">
               <Shield className="w-3.5 h-3.5 text-brand-teal" /> Staff Portal
             </span>
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="md:hidden text-gray-500 hover:text-red-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </header>
 

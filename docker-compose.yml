@@ -71,21 +71,20 @@ services:
     ports:
       - "3001:3001"
       - "24679:24679"
+    env_file:
+      - apps/admin/.env
     environment:
       PORT: 3001
       NODE_ENV: development
       DATABASE_URL: postgresql://carepal:carepal_secret@postgres:5432/carepal_db?schema=public
       STORAGE_DIR: /app/storage/uploads
       USER_APP_URL: http://localhost:3000
-      SESSION_SECRET: carepal_session_secret_local_dev_key_32chars
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       SMTP_USER: ""
       SMTP_PASS: ""
       SMTP_SECURE: "false"
       EMAIL_FROM: "TheCarePal Admin <admin@thecarepal.test>"
-      ADMIN_SEED_EMAIL: admin@thecarepal.test
-      ADMIN_SEED_PASSWORD: CarePalAdmin2026!
     volumes:
       - ./apps/admin:/app/apps/admin
       - /app/apps/admin/node_modules

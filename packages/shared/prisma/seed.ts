@@ -1,12 +1,17 @@
 import { PrismaClient, Stage, Qualification, AvailabilityType, DocumentCategory, VerificationStatus, InterviewMode, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const prisma = new PrismaClient();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../../../apps/admin/.env') });
+dotenv.config();
+
+const prisma = new PrismaClient();
 
 // Shared storage directory
 const storageDir = path.resolve(__dirname, '../../../storage/uploads');
@@ -177,7 +182,10 @@ async function main() {
 
   // 1. Seed Admin User
   const adminEmail = process.env.ADMIN_SEED_EMAIL || 'admin@thecarepal.test';
-  const adminPassword = process.env.ADMIN_SEED_PASSWORD || 'CarePalAdmin2026!';
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD;
+  if (!adminPassword) {
+    throw new Error('ADMIN_SEED_PASSWORD environment variable must be set in .env');
+  }
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   const admin = await prisma.user.upsert({
