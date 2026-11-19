@@ -12,12 +12,18 @@ import {
   updateChecklistItem,
   updateDocumentStatus,
   resendCandidateEmail,
+  getDuplicateCandidates,
+  resolveDuplicateCandidate,
+  getDashboardStats,
 } from '../controllers/candidateController.js';
 
 const router = Router();
 
 router.get('/', requireAuth, getCandidates);
 router.get('/board', requireAuth, getCandidatesBoard);
+router.get('/dashboard/stats', requireAuth, getDashboardStats);
+router.get('/duplicates', requireAuth, getDuplicateCandidates);
+router.post('/duplicates/resolve', requireAuth, resolveDuplicateCandidate);
 router.get('/verification/queue', requireAuth, getVerificationQueue);
 router.get('/export', requireAuth, exportCandidatesCsv);
 router.get('/:id', requireAuth, getCandidateById);

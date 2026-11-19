@@ -12,6 +12,7 @@ import {
   Eye,
   RefreshCw,
   Users,
+  Copy,
 } from 'lucide-react';
 import { Badge, Button, Card } from '@carepal/ui';
 import { CandidateDetailDrawer } from './CandidateDetailDrawer.js';
@@ -32,6 +33,7 @@ interface CandidateListItem {
   stage: string;
   createdAt: string;
   daysInStage: number;
+  isDuplicate?: boolean;
   stats: {
     totalDocs: number;
     verifiedDocs: number;
@@ -546,8 +548,19 @@ export const CandidateListPage: React.FC = () => {
                     >
                       {/* Name & Contact */}
                       <td className="py-3.5 px-4 sm:px-6">
-                        <div className="font-semibold text-slate-900 group-hover:text-brand-action transition-colors">
-                          {c.fullName}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-slate-900 group-hover:text-brand-action transition-colors">
+                            {c.fullName}
+                          </span>
+                          {c.isDuplicate && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
+                              title="Possible duplicate application detected"
+                            >
+                              <Copy className="w-2.5 h-2.5 text-amber-600" />
+                              <span>Duplicate</span>
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-[11px] text-gray-500 font-mono mt-0.5">
                           <span>{c.applicationId}</span>

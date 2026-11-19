@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -21,6 +22,11 @@ import {
   ArrowRight,
   RotateCcw,
   UserX,
+  Copy,
+  Clock,
+  Sparkles,
+  CheckCircle2,
+  Users,
 } from 'lucide-react';
 import { Button } from '@carepal/ui';
 import { CandidateDetailDrawer } from '../candidates/CandidateDetailDrawer.js';
@@ -41,11 +47,26 @@ interface BoardCandidate {
   stage: StageType;
   stageUpdatedAt: string;
   daysInStage: number;
+  isDuplicate?: boolean;
   stats: {
     totalDocs: number;
     verifiedDocs: number;
     totalChecklist: number;
     verifiedChecklist: number;
+  };
+}
+
+interface DashboardStats {
+  totalCandidates: number;
+  todayApplicationsCount: number;
+  stageCounts: Record<StageType, number>;
+  agingCount: number;
+  pendingVerificationCount: number;
+  duplicatePairsCount: number;
+  slots: {
+    total: number;
+    available: number;
+    booked: number;
   };
 }
 
@@ -101,11 +122,22 @@ const DraggableCandidateCard: React.FC<{
       style={{ opacity: isDragging ? 0.35 : 1 }}
       className="p-3.5 rounded-xl bg-white border border-gray-200/90 shadow-2xs hover:shadow-sm hover:border-brand-action/40 transition-all cursor-grab active:cursor-grabbing relative group select-none"
     >
-      {/* Top row: App ID and Quick Move Menu */}
+      {/* Top row: App ID, Duplicate Badge, and Quick Move Menu */}
       <div className="flex items-center justify-between gap-1 mb-1.5">
-        <span className="font-mono text-[10px] font-semibold text-gray-500 bg-slate-100 px-1.5 py-0.5 rounded">
-          {candidate.applicationId}
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-[10px] font-semibold text-gray-500 bg-slate-100 px-1.5 py-0.5 rounded">
+            {candidate.applicationId}
+          </span>
+          {candidate.isDuplicate && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
+              title="Possible duplicate application detected"
+            >
+              <Copy className="w-2.5 h-2.5 text-amber-600" />
+              <span>Duplicate</span>
+            </span>
+          )}
+        </div>
 
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <button
@@ -318,6 +350,7 @@ export const PipelineBoardPage: React.FC = () => {
     ONBOARDED: 0,
     REJECTED: 0,
   });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
 
@@ -359,6 +392,18 @@ export const PipelineBoardPage: React.FC = () => {
     })
   );
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/stats', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error('Stats fetch error:', err);
+    }
+  }, []);
+
   const fetchBoard = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
@@ -378,7 +423,8 @@ export const PipelineBoardPage: React.FC = () => {
 
   useEffect(() => {
     fetchBoard();
-  }, [fetchBoard]);
+    fetchStats();
+  }, [fetchBoard, fetchStats]);
 
   // Execute stage change API call with optimistic update and rollback
   const executeStageTransition = async (
@@ -430,6 +476,7 @@ export const PipelineBoardPage: React.FC = () => {
 
       // Success
       setErrorMessage(null);
+      fetchStats();
     } catch (err) {
       console.error('Transition error:', err);
       // Rollback
@@ -588,7 +635,10 @@ export const PipelineBoardPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchBoard}
+            onClick={() => {
+              fetchBoard();
+              fetchStats();
+            }}
             className="text-xs gap-1.5 h-9"
             title="Refresh pipeline"
           >
@@ -596,6 +646,94 @@ export const PipelineBoardPage: React.FC = () => {
             <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
+      </div>
+
+      {/* Executive Dashboard Metrics Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* Card 1: Total Candidates */}
+        <div className="p-3.5 bg-white rounded-xl border border-gray-200/90 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-gray-500 font-medium">
+            <span>Total Candidates</span>
+            <Users className="w-4 h-4 text-brand-teal" />
+          </div>
+          <div className="text-2xl font-bold font-heading text-slate-900 mt-1">
+            {stats ? stats.totalCandidates : totalCandidates}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-1 truncate">
+            {counts.APPLIED} applied • {counts.SCREENING} screening
+          </div>
+        </div>
+
+        {/* Card 2: Today's Applications */}
+        <div className="p-3.5 bg-white rounded-xl border border-gray-200/90 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-gray-500 font-medium">
+            <span>New Today</span>
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          </div>
+          <div className="text-2xl font-bold font-heading text-emerald-600 mt-1">
+            {stats ? stats.todayApplicationsCount : 0}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-1">
+            Submitted in last 24h
+          </div>
+        </div>
+
+        {/* Card 3: Aging Candidates (>3 Days) */}
+        <div className="p-3.5 bg-white rounded-xl border border-gray-200/90 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-gray-500 font-medium">
+            <span>Aging Alert (&gt;3d)</span>
+            <Clock className={`w-4 h-4 ${stats && stats.agingCount > 0 ? 'text-amber-500' : 'text-gray-400'}`} />
+          </div>
+          <div className={`text-2xl font-bold font-heading mt-1 ${stats && stats.agingCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
+            {stats ? stats.agingCount : 0}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-1">
+            {stats && stats.agingCount > 0 ? 'Needs coordinator follow-up' : 'All stages on schedule'}
+          </div>
+        </div>
+
+        {/* Card 4: Verification Queue */}
+        <Link
+          to="/checklist"
+          className="p-3.5 bg-white rounded-xl border border-gray-200/90 shadow-2xs hover:border-brand-action/50 transition-colors group"
+        >
+          <div className="flex items-center justify-between text-xs text-gray-500 font-medium">
+            <span className="group-hover:text-brand-action transition-colors">Verification Backlog</span>
+            <FileText className="w-4 h-4 text-gray-400 group-hover:text-brand-action transition-colors" />
+          </div>
+          <div className="text-2xl font-bold font-heading text-slate-800 mt-1 group-hover:text-brand-action transition-colors">
+            {stats ? stats.pendingVerificationCount : 0}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-1">
+            Pending document checks →
+          </div>
+        </Link>
+
+        {/* Card 5: Duplicate Candidates */}
+        <Link
+          to="/duplicates"
+          className={`p-3.5 rounded-xl border shadow-2xs transition-colors group col-span-2 lg:col-span-1 ${
+            stats && stats.duplicatePairsCount > 0
+              ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+              : 'bg-white border-gray-200/90 hover:border-brand-action/50'
+          }`}
+        >
+          <div className="flex items-center justify-between text-xs text-gray-500 font-medium">
+            <span className={stats && stats.duplicatePairsCount > 0 ? 'text-amber-900 font-semibold' : ''}>
+              Duplicates Flagged
+            </span>
+            <Copy className={`w-4 h-4 ${stats && stats.duplicatePairsCount > 0 ? 'text-amber-600' : 'text-gray-400'}`} />
+          </div>
+          <div className={`text-2xl font-bold font-heading mt-1 ${stats && stats.duplicatePairsCount > 0 ? 'text-amber-700' : 'text-slate-800'}`}>
+            {stats ? stats.duplicatePairsCount : 0}
+          </div>
+          <div className={`text-[11px] mt-1 ${stats && stats.duplicatePairsCount > 0 ? 'text-amber-800 font-medium' : 'text-gray-500'}`}>
+            {stats && stats.duplicatePairsCount > 0 ? 'Review pairs →' : 'Zero duplicates detected'}
+          </div>
+        </Link>
       </div>
 
       {/* Error Alert Banner */}

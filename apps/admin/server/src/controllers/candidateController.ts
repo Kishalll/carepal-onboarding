@@ -86,6 +86,162 @@ function buildCandidateWhere(query: Request['query']): Prisma.CandidateWhereInpu
   return andConditions.length > 0 ? { AND: andConditions } : {};
 }
 
+export interface DuplicatePair {
+  id: string;
+  reason: 'MATCHING_EMAIL' | 'MATCHING_NAME_AND_DOB';
+  reasonText: string;
+  primaryCandidate: {
+    id: string;
+    applicationId: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    dateOfBirth: Date;
+    city: string;
+    qualification: Qualification;
+    experienceYears: number;
+    stage: Stage;
+    createdAt: Date;
+    documentsCount: number;
+    verifiedDocumentsCount: number;
+    notesCount: number;
+  };
+  duplicateCandidate: {
+    id: string;
+    applicationId: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    dateOfBirth: Date;
+    city: string;
+    qualification: Qualification;
+    experienceYears: number;
+    stage: Stage;
+    createdAt: Date;
+    documentsCount: number;
+    verifiedDocumentsCount: number;
+    notesCount: number;
+  };
+  createdAt: string;
+}
+
+export async function getDuplicatePairsHelper(): Promise<{
+  pairs: DuplicatePair[];
+  duplicateCandidateIds: Set<string>;
+}> {
+  const candidates = await prisma.candidate.findMany({
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      applicationId: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      dateOfBirth: true,
+      city: true,
+      qualification: true,
+      experienceYears: true,
+      stage: true,
+      createdAt: true,
+      documents: { select: { id: true, status: true } },
+      notes: { select: { id: true } },
+    },
+  });
+
+  const pairs: DuplicatePair[] = [];
+  const duplicateCandidateIds = new Set<string>();
+  const seenPairKeys = new Set<string>();
+
+  const summaries = new Map<string, DuplicatePair['primaryCandidate']>();
+  for (const c of candidates) {
+    summaries.set(c.id, {
+      id: c.id,
+      applicationId: c.applicationId,
+      fullName: c.fullName,
+      email: c.email,
+      phone: c.phone,
+      dateOfBirth: c.dateOfBirth,
+      city: c.city,
+      qualification: c.qualification,
+      experienceYears: c.experienceYears,
+      stage: c.stage,
+      createdAt: c.createdAt,
+      documentsCount: c.documents.length,
+      verifiedDocumentsCount: c.documents.filter((d) => d.status === 'VERIFIED').length,
+      notesCount: c.notes.length,
+    });
+  }
+
+  // 1. Match by email (case-insensitive)
+  const emailMap = new Map<string, typeof candidates>();
+  for (const c of candidates) {
+    const key = c.email.trim().toLowerCase();
+    if (!emailMap.has(key)) emailMap.set(key, []);
+    emailMap.get(key)!.push(c);
+  }
+
+  for (const [email, group] of emailMap.entries()) {
+    if (group.length > 1) {
+      for (let i = 0; i < group.length - 1; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          const c1 = group[i];
+          const c2 = group[j];
+          const pairKey = [c1.id, c2.id].sort().join('_');
+          if (!seenPairKeys.has(pairKey)) {
+            seenPairKeys.add(pairKey);
+            duplicateCandidateIds.add(c1.id);
+            duplicateCandidateIds.add(c2.id);
+            pairs.push({
+              id: `dup-${pairKey}`,
+              reason: 'MATCHING_EMAIL',
+              reasonText: `Matching email address: ${email}`,
+              primaryCandidate: summaries.get(c1.id)!,
+              duplicateCandidate: summaries.get(c2.id)!,
+              createdAt: c2.createdAt.toISOString(),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Match by normalized name + date of birth
+  const nameDobMap = new Map<string, typeof candidates>();
+  for (const c of candidates) {
+    const dobStr = new Date(c.dateOfBirth).toISOString().slice(0, 10);
+    const key = `${c.fullName.trim().toLowerCase()}_${dobStr}`;
+    if (!nameDobMap.has(key)) nameDobMap.set(key, []);
+    nameDobMap.get(key)!.push(c);
+  }
+
+  for (const [, group] of nameDobMap.entries()) {
+    if (group.length > 1) {
+      for (let i = 0; i < group.length - 1; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          const c1 = group[i];
+          const c2 = group[j];
+          const pairKey = [c1.id, c2.id].sort().join('_');
+          if (!seenPairKeys.has(pairKey)) {
+            seenPairKeys.add(pairKey);
+            duplicateCandidateIds.add(c1.id);
+            duplicateCandidateIds.add(c2.id);
+            pairs.push({
+              id: `dup-${pairKey}`,
+              reason: 'MATCHING_NAME_AND_DOB',
+              reasonText: `Matching full name and date of birth: ${c1.fullName} (${new Date(c1.dateOfBirth).toLocaleDateString()})`,
+              primaryCandidate: summaries.get(c1.id)!,
+              duplicateCandidate: summaries.get(c2.id)!,
+              createdAt: c2.createdAt.toISOString(),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return { pairs, duplicateCandidateIds };
+}
+
 export async function getCandidates(req: Request, res: Response): Promise<void> {
   try {
     const page = Math.max(1, parseInt(String(req.query.page || 1), 10));
@@ -100,7 +256,8 @@ export async function getCandidates(req: Request, res: Response): Promise<void> 
 
     const where = buildCandidateWhere(req.query);
 
-    const [total, candidates] = await Promise.all([
+    const [{ duplicateCandidateIds }, total, candidates] = await Promise.all([
+      getDuplicatePairsHelper(),
       prisma.candidate.count({ where }),
       prisma.candidate.findMany({
         where,
@@ -155,6 +312,7 @@ export async function getCandidates(req: Request, res: Response): Promise<void> 
         stageUpdatedAt: c.stageUpdatedAt,
         createdAt: c.createdAt,
         daysInStage,
+        isDuplicate: duplicateCandidateIds.has(c.id),
         stats: {
           totalDocs,
           verifiedDocs,
@@ -293,10 +451,27 @@ export async function getCandidateById(req: Request, res: Response): Promise<voi
       Math.floor((Date.now() - new Date(candidate.stageUpdatedAt).getTime()) / (1000 * 60 * 60 * 24))
     );
 
+    const { pairs, duplicateCandidateIds } = await getDuplicatePairsHelper();
+    const matchingPair = pairs.find(
+      (p) => p.primaryCandidate.id === candidate.id || p.duplicateCandidate.id === candidate.id
+    );
+
     res.json({
       ...candidate,
       daysInStage,
       documents: docsWithSignedUrls,
+      isDuplicate: duplicateCandidateIds.has(candidate.id),
+      duplicateMatch: matchingPair
+        ? {
+            pairId: matchingPair.id,
+            reason: matchingPair.reason,
+            reasonText: matchingPair.reasonText,
+            otherCandidate:
+              matchingPair.primaryCandidate.id === candidate.id
+                ? matchingPair.duplicateCandidate
+                : matchingPair.primaryCandidate,
+          }
+        : null,
     });
   } catch (err) {
     console.error('Error fetching candidate detail:', err);
@@ -595,17 +770,20 @@ export async function getCandidatesBoard(
   res: Response
 ): Promise<void> {
   try {
-    const candidates = await prisma.candidate.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        documents: {
-          select: { id: true, category: true, status: true },
+    const [{ duplicateCandidateIds }, candidates] = await Promise.all([
+      getDuplicatePairsHelper(),
+      prisma.candidate.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          documents: {
+            select: { id: true, category: true, status: true },
+          },
+          checklistItems: {
+            select: { id: true, status: true, required: true },
+          },
         },
-        checklistItems: {
-          select: { id: true, status: true, required: true },
-        },
-      },
-    });
+      }),
+    ]);
 
     const board: Record<Stage, Record<string, unknown>[]> = {
       APPLIED: [],
@@ -649,6 +827,7 @@ export async function getCandidatesBoard(
         stage: c.stage,
         stageUpdatedAt: c.stageUpdatedAt,
         daysInStage,
+        isDuplicate: duplicateCandidateIds.has(c.id),
         stats: {
           totalDocs,
           verifiedDocs,
@@ -1035,6 +1214,245 @@ export async function resendCandidateEmail(
   } catch (err: unknown) {
     console.error('Error resending email:', err);
     res.status(500).json({ error: (err as Error).message || 'Failed to resend email' });
+  }
+}
+
+/**
+ * Fetch detected duplicate candidate pairs.
+ * GET /api/candidates/duplicates
+ */
+export async function getDuplicateCandidates(_req: Request, res: Response): Promise<void> {
+  try {
+    const { pairs } = await getDuplicatePairsHelper();
+    res.json({
+      pairs,
+      totalPairs: pairs.length,
+    });
+  } catch (err) {
+    console.error('Error fetching duplicate candidates:', err);
+    res.status(500).json({ error: 'Failed to retrieve duplicate candidates' });
+  }
+}
+
+/**
+ * Resolve a detected duplicate pair.
+ * POST /api/candidates/duplicates/resolve
+ */
+export async function resolveDuplicateCandidate(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  try {
+    const { primaryId, duplicateId, action, note } = req.body;
+
+    if (!primaryId || !duplicateId || !action) {
+      res.status(400).json({ error: 'primaryId, duplicateId, and action are required' });
+      return;
+    }
+
+    const [primary, duplicate] = await Promise.all([
+      prisma.candidate.findUnique({ where: { id: primaryId } }),
+      prisma.candidate.findUnique({
+        where: { id: duplicateId },
+        include: { notes: true },
+      }),
+    ]);
+
+    if (!primary || !duplicate) {
+      res.status(404).json({ error: 'Candidate records not found' });
+      return;
+    }
+
+    const adminUser = req.user;
+    const authorName = adminUser?.name || 'Operations Admin';
+    const authorId = adminUser?.id;
+
+    if (!authorId) {
+      res.status(401).json({ error: 'Authenticated user required' });
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (action === 'REJECT_DUPLICATE') {
+        if (duplicate.stage !== Stage.REJECTED) {
+          await tx.candidate.update({
+            where: { id: duplicate.id },
+            data: {
+              stage: Stage.REJECTED,
+              stageUpdatedAt: new Date(),
+            },
+          });
+
+          await tx.stageHistory.create({
+            data: {
+              candidateId: duplicate.id,
+              fromStage: duplicate.stage,
+              toStage: Stage.REJECTED,
+              reasonNote: note || `Rejected as duplicate of application ${primary.applicationId}`,
+              changedById: authorId,
+              changedByName: authorName,
+            },
+          });
+        }
+
+        await tx.note.create({
+          data: {
+            candidateId: primary.id,
+            authorId,
+            authorName,
+            content: `Duplicate review: Application ${duplicate.applicationId} was marked as duplicate and rejected. ${note ? `Note: ${note}` : ''}`,
+          },
+        });
+      } else if (action === 'MERGE_NOTES') {
+        for (const n of duplicate.notes) {
+          await tx.note.create({
+            data: {
+              candidateId: primary.id,
+              authorId: n.authorId,
+              authorName: n.authorName,
+              content: `[Merged from ${duplicate.applicationId}]: ${n.content}`,
+            },
+          });
+        }
+
+        if (duplicate.stage !== Stage.REJECTED) {
+          await tx.candidate.update({
+            where: { id: duplicate.id },
+            data: {
+              stage: Stage.REJECTED,
+              stageUpdatedAt: new Date(),
+            },
+          });
+
+          await tx.stageHistory.create({
+            data: {
+              candidateId: duplicate.id,
+              fromStage: duplicate.stage,
+              toStage: Stage.REJECTED,
+              reasonNote: `Merged into primary application ${primary.applicationId}. ${note || ''}`,
+              changedById: authorId,
+              changedByName: authorName,
+            },
+          });
+        }
+      } else if (action === 'MARK_DISTINCT') {
+        await tx.note.create({
+          data: {
+            candidateId: primary.id,
+            authorId,
+            authorName,
+            content: `Duplicate review: Verified as distinct candidate from ${duplicate.applicationId}. ${note ? `Note: ${note}` : ''}`,
+          },
+        });
+
+        await tx.note.create({
+          data: {
+            candidateId: duplicate.id,
+            authorId,
+            authorName,
+            content: `Duplicate review: Verified as distinct candidate from ${primary.applicationId}. ${note ? `Note: ${note}` : ''}`,
+          },
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Duplicate resolved with action: ${action}`,
+    });
+  } catch (err) {
+    console.error('Error resolving duplicate:', err);
+    res.status(500).json({ error: 'Failed to resolve duplicate' });
+  }
+}
+
+/**
+ * Live operations dashboard statistics.
+ * GET /api/candidates/dashboard/stats
+ */
+export async function getDashboardStats(_req: Request, res: Response): Promise<void> {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+    const [
+      candidates,
+      todayApplicationsCount,
+      totalSlots,
+      availableSlots,
+      bookedSlots,
+    ] = await Promise.all([
+      prisma.candidate.findMany({
+        select: {
+          id: true,
+          stage: true,
+          stageUpdatedAt: true,
+          createdAt: true,
+          documents: { select: { status: true } },
+          checklistItems: { select: { status: true, required: true } },
+        },
+      }),
+      prisma.candidate.count({
+        where: {
+          createdAt: { gte: todayStart },
+        },
+      }),
+      prisma.interviewSlot.count(),
+      prisma.interviewSlot.count({
+        where: { candidateId: null, startTime: { gt: new Date() } },
+      }),
+      prisma.interviewSlot.count({
+        where: { candidateId: { not: null } },
+      }),
+    ]);
+
+    const stageCounts: Record<Stage, number> = {
+      APPLIED: 0,
+      SCREENING: 0,
+      INTERVIEW: 0,
+      VERIFIED: 0,
+      ONBOARDED: 0,
+      REJECTED: 0,
+    };
+
+    let agingCount = 0;
+    let pendingVerificationCount = 0;
+
+    candidates.forEach((c) => {
+      stageCounts[c.stage] = (stageCounts[c.stage] || 0) + 1;
+
+      if (c.stage !== Stage.ONBOARDED && c.stage !== Stage.REJECTED) {
+        if (new Date(c.stageUpdatedAt) <= threeDaysAgo) {
+          agingCount++;
+        }
+      }
+
+      const hasPendingDoc = c.documents.some((d) => d.status === 'PENDING');
+      if (hasPendingDoc) {
+        pendingVerificationCount++;
+      }
+    });
+
+    const { pairs } = await getDuplicatePairsHelper();
+
+    res.json({
+      totalCandidates: candidates.length,
+      todayApplicationsCount,
+      stageCounts,
+      agingCount,
+      pendingVerificationCount,
+      duplicatePairsCount: pairs.length,
+      slots: {
+        total: totalSlots,
+        available: availableSlots,
+        booked: bookedSlots,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
+    res.status(500).json({ error: 'Failed to retrieve dashboard stats' });
   }
 }
 

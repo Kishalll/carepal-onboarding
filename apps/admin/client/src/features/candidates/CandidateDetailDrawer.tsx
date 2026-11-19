@@ -23,6 +23,7 @@ import {
   AlertCircle,
   RefreshCw,
   Undo2,
+  Copy,
 } from 'lucide-react';
 import { Badge, Button, Card } from '@carepal/ui';
 
@@ -111,6 +112,17 @@ export interface CandidateDetail {
   notes: NoteItem[];
   stageHistory: StageHistoryItem[];
   emailLogs?: EmailLogItem[];
+  isDuplicate?: boolean;
+  duplicateMatch?: {
+    pairId: string;
+    reason: string;
+    reasonText: string;
+    otherCandidate: {
+      id: string;
+      applicationId: string;
+      fullName: string;
+    };
+  } | null;
 }
 
 interface CandidateDetailDrawerProps {
@@ -432,6 +444,25 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                   <span>Email</span>
                 </a>
               </div>
+            </div>
+          )}
+
+          {/* Duplicate Warning Banner */}
+          {candidate?.duplicateMatch && (
+            <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-900">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  <strong>Possible Duplicate:</strong> {candidate.duplicateMatch.reasonText} with candidate <strong>{candidate.duplicateMatch.otherCandidate.fullName}</strong> ({candidate.duplicateMatch.otherCandidate.applicationId}).
+                </span>
+              </div>
+              <a
+                href="/duplicates"
+                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded-lg text-xs transition-colors shrink-0 flex items-center gap-1"
+              >
+                <Copy className="w-3 h-3 text-amber-700" />
+                <span>Review Duplicate</span>
+              </a>
             </div>
           )}
 

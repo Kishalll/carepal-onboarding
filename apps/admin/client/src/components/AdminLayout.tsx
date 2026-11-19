@@ -8,6 +8,7 @@ import {
   Calendar,
   LogOut,
   Shield,
+  Copy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.js';
 
@@ -50,6 +51,11 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       path: '/slots',
       label: 'Interview Slots',
       icon: <Calendar className="w-5 h-5" />,
+    },
+    {
+      path: '/duplicates',
+      label: 'Duplicate Review',
+      icon: <Copy className="w-5 h-5" />,
     },
   ];
 

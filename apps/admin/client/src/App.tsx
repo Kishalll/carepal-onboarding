@@ -9,6 +9,7 @@ import { CandidateListPage } from './features/candidates/CandidateListPage.js';
 import { PipelineBoardPage } from './features/board/PipelineBoardPage.js';
 import { VerificationPage } from './features/verification/VerificationPage.js';
 import { SlotsPage } from './features/slots/SlotsPage.js';
+import { DuplicateReviewPage } from './features/duplicates/DuplicateReviewPage.js';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
                       <Route path="/checklist" element={<VerificationPage />} />
                       <Route path="/verification" element={<VerificationPage />} />
                       <Route path="/slots" element={<SlotsPage />} />
+                      <Route path="/duplicates" element={<DuplicateReviewPage />} />
                       <Route path="*" element={<PipelineBoardPage />} />
                     </Routes>
                   </AdminLayout>

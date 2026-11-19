@@ -6,7 +6,12 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import candidateRoutes from './routes/candidateRoutes.js';
 import slotRoutes from './routes/slotRoutes.js';
-import { streamDocument } from './controllers/candidateController.js';
+import {
+  streamDocument,
+  getDashboardStats,
+  getDuplicateCandidates,
+} from './controllers/candidateController.js';
+import { requireAuth } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -30,6 +35,10 @@ async function startServer() {
 
   // Interview slot routes (protected)
   app.use('/api/slots', slotRoutes);
+
+  // Operations dashboard & duplicate aliases (protected)
+  app.get('/api/dashboard/stats', requireAuth, getDashboardStats);
+  app.get('/api/duplicates', requireAuth, getDuplicateCandidates);
 
   // Signed document streaming
   app.get('/api/documents/view/:storageKey', streamDocument);
