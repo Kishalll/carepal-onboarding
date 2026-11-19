@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
+import candidateRoutes from './routes/candidateRoutes.js';
+import { streamDocument } from './controllers/candidateController.js';
 
 dotenv.config();
 
@@ -21,6 +23,12 @@ async function startServer() {
 
   // Auth routes
   app.use('/api/auth', authRoutes);
+
+  // Candidate routes (protected)
+  app.use('/api/candidates', candidateRoutes);
+
+  // Signed document streaming
+  app.get('/api/documents/view/:storageKey', streamDocument);
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {

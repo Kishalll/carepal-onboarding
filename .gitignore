@@ -26,6 +26,8 @@ Thumbs.db
 coverage/
 *.lcov
 
+DECISIONS.md
+
 # Logs
 logs/
 *.log

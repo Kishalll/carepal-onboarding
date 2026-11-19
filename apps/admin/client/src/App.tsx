@@ -5,6 +5,7 @@ import { AdminLayout } from './components/AdminLayout.js';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { AuthProvider } from './context/AuthContext.js';
 import { LoginPage } from './features/auth/LoginPage.js';
+import { CandidateListPage } from './features/candidates/CandidateListPage.js';
 import { Users, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 function DashboardOverview() {
@@ -124,6 +125,8 @@ export default function App() {
                   <AdminLayout>
                     <Routes>
                       <Route path="/" element={<DashboardOverview />} />
+                      <Route path="/candidates" element={<CandidateListPage />} />
+                      <Route path="/candidates/:id" element={<CandidateListPage />} />
                       <Route path="*" element={<DashboardOverview />} />
                     </Routes>
                   </AdminLayout>
