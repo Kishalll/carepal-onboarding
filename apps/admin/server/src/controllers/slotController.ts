@@ -102,13 +102,41 @@ export async function createSlot(req: AuthenticatedRequest, res: Response): Prom
       ? (mode as InterviewMode)
       : InterviewMode.VIDEO;
 
+    const trimmedInterviewer = interviewerName.trim();
+
+    // Check for scheduling conflict: another slot for this interviewer overlapping the time window
+    const existingConflict = await prisma.interviewSlot.findFirst({
+      where: {
+        interviewerName: {
+          equals: trimmedInterviewer,
+          mode: 'insensitive',
+        },
+        startTime: {
+          lt: end,
+        },
+        endTime: {
+          gt: start,
+        },
+      },
+    });
+
+    if (existingConflict) {
+      const conflictStart = new Date(existingConflict.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const conflictEnd = new Date(existingConflict.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      res.status(409).json({
+        error: 'interviewer_schedule_conflict',
+        message: `${trimmedInterviewer} already has a meeting scheduled between ${conflictStart} and ${conflictEnd}. Please choose a different time or interviewer.`,
+      });
+      return;
+    }
+
     const bookingToken = `slot-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
 
     const newSlot = await prisma.interviewSlot.create({
       data: {
         startTime: start,
         endTime: end,
-        interviewerName: interviewerName.trim(),
+        interviewerName: trimmedInterviewer,
         mode: interviewMode,
         bookingToken,
       },

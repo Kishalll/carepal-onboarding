@@ -24,6 +24,7 @@ import {
   UserX,
   X,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 
 interface CandidateRef {
@@ -82,6 +83,7 @@ export const SlotsPage: React.FC = () => {
   const [newInterviewer, setNewInterviewer] = useState('Dr. Kavita Sharma (Clinical Operations)');
   const [newMode, setNewMode] = useState<'VIDEO' | 'IN_PERSON' | 'PHONE'>('VIDEO');
   const [creatingSlot, setCreatingSlot] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const fetchSlots = useCallback(async () => {
     try {
@@ -127,6 +129,7 @@ export const SlotsPage: React.FC = () => {
 
   const handleCreateSlot = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError(null);
     if (!newDate || !newStartTime || !newInterviewer.trim()) {
       toastError('Please fill in all slot details');
       return;
@@ -150,11 +153,14 @@ export const SlotsPage: React.FC = () => {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to create slot');
+        const msg = data.message || data.error || 'Failed to create slot';
+        setCreateError(msg);
+        throw new Error(msg);
       }
 
       toastSuccess('Interview slot created successfully');
       setShowCreateModal(false);
+      setCreateError(null);
       fetchSlots();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error creating slot';
@@ -309,7 +315,10 @@ export const SlotsPage: React.FC = () => {
             variant="primary"
             size="md"
             icon={<Plus className="w-4 h-4" />}
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setCreateError(null);
+              setShowCreateModal(true);
+            }}
           >
             Create Slot
           </Button>
@@ -438,7 +447,10 @@ export const SlotsPage: React.FC = () => {
               variant="primary"
               size="sm"
               icon={<Plus className="w-4 h-4" />}
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setCreateError(null);
+                setShowCreateModal(true);
+              }}
             >
               Create New Slot
             </Button>
@@ -598,7 +610,10 @@ export const SlotsPage: React.FC = () => {
               </h3>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setCreateError(null);
+                  setShowCreateModal(false);
+                }}
                 className="p-1 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"
               >
                 <X className="w-4 h-4" />
@@ -606,6 +621,13 @@ export const SlotsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateSlot} className="space-y-4 mt-4">
+              {createError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <span>{createError}</span>
+                </div>
+              )}
+
               <Input
                 label="Interview Date"
                 type="date"
