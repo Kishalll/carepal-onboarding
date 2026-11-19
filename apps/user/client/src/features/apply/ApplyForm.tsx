@@ -467,30 +467,172 @@ export const ApplyForm: React.FC = () => {
     { id: 5, title: t('apply.step5.title'), description: t('apply.step5.desc') },
   ];
 
-  const cityOptions = CITIES.map((c) => ({ value: c, label: c }));
-  const qualOptions = QUALIFICATIONS.map((q) => {
-    const labels: Record<string, string> = {
+  const currentLang = (i18n.language || 'en').slice(0, 2);
+
+  const CITY_LABELS: Record<string, Record<string, string>> = {
+    hi: {
+      'Delhi NCR': 'दिल्ली एनसीआर',
+      'Mumbai': 'मुंबई',
+      'Bengaluru': 'बेंगलुरु',
+      'Hyderabad': 'हैदराबाद',
+      'Chennai': 'चेन्नई',
+      'Pune': 'पुणे',
+      'Kolkata': 'कोलकाता',
+      'Coimbatore': 'कोयंबटूर',
+    },
+    ta: {
+      'Delhi NCR': 'டெல்லி என்.சி.ஆர்',
+      'Mumbai': 'மும்பை',
+      'Bengaluru': 'பெங்களூரு',
+      'Hyderabad': 'ஹைதராபாத்',
+      'Chennai': 'சென்னை',
+      'Pune': 'புனே',
+      'Kolkata': 'கொல்கத்தா',
+      'Coimbatore': 'கோயம்புத்தூர்',
+    },
+  };
+
+  const QUALIFICATION_LABELS: Record<string, Record<string, string>> = {
+    en: {
       GNM: 'General Nursing & Midwifery (GNM)',
       ANM: 'Auxiliary Nurse Midwife (ANM)',
       B_SC_NURSING: 'B.Sc Nursing',
       TRAINED_CAREGIVER: 'Trained Caregiver',
-    };
-    return { value: q, label: labels[q] || q };
-  });
+    },
+    hi: {
+      GNM: 'जनरल नर्सिंग एंड मिडवाइफरी (GNM)',
+      ANM: 'ऑक्सिलरी नर्स मिडवाइफ (ANM)',
+      B_SC_NURSING: 'बी.एससी नर्सिंग (B.Sc Nursing)',
+      TRAINED_CAREGIVER: 'प्रशिक्षित देखभालकर्ता (Trained Caregiver)',
+    },
+    ta: {
+      GNM: 'பொது செவிலியர் மற்றும் மகப்பேறியல் (GNM)',
+      ANM: 'துணை செவிலியர் மற்றும் மருத்துவச்சி (ANM)',
+      B_SC_NURSING: 'பி.எஸ்சி நர்சிங் (B.Sc Nursing)',
+      TRAINED_CAREGIVER: 'பயிற்சி பெற்ற பராமரிப்பாளர் (Trained Caregiver)',
+    },
+  };
 
-  const availOptions = AVAILABILITY_TYPES.map((a) => {
-    const labels: Record<string, string> = {
+  const AVAILABILITY_LABELS: Record<string, Record<string, string>> = {
+    en: {
       FULL_TIME: 'Full Time (12h shifts)',
       PART_TIME: 'Part Time (4-6h shifts)',
       LIVE_IN: 'Live-In Care (24x7 with family)',
       NIGHT_SHIFTS: 'Night Shifts Only',
       WEEKENDS: 'Weekends & Emergency Relief',
-    };
-    return { value: a, label: labels[a] || a };
-  });
+    },
+    hi: {
+      FULL_TIME: 'फुल टाइम (12 घंटे की शिफ्ट)',
+      PART_TIME: 'पार्ट टाइम (4-6 घंटे की शिफ्ट)',
+      LIVE_IN: 'घर में रहकर देखभाल (24x7 परिवार के साथ)',
+      NIGHT_SHIFTS: 'केवल नाइट शिफ्ट',
+      WEEKENDS: 'सप्ताहांत और आपातकालीन सेवा',
+    },
+    ta: {
+      FULL_TIME: 'முழு நேரம் (12 மணி நேர ஷிப்ட்)',
+      PART_TIME: 'பகுதி நேரம் (4-6 மணி நேர ஷிப்ட்)',
+      LIVE_IN: 'தங்கி பணிபுரிதல் (24x7 குடும்பத்துடன்)',
+      NIGHT_SHIFTS: 'இரவு ஷிப்ட் மட்டும்',
+      WEEKENDS: 'வார இறுதி மற்றும் அவசர நிவாரணம்',
+    },
+  };
 
-  const skillOptions = SKILLS.map((s) => ({ value: s, label: s }));
-  const langOptions = LANGUAGES.map((l) => ({ value: l, label: l }));
+  const SKILL_LABELS: Record<string, Record<string, string>> = {
+    hi: {
+      'Elderly Care': 'बुजुर्गों की देखभाल (Elderly Care)',
+      'Alzheimer and Dementia Care': 'अल्जाइमर और डिमेंशिया देखभाल',
+      'Baby Care': 'शिशु देखभाल (Baby Care)',
+      'Post-Hospital Recovery': 'अस्पताल के बाद सुधार (Post-Hospital)',
+      'Live-in Care': 'घर पर रहकर देखभाल (Live-in Care)',
+      'Autism Care': 'ऑटिज्म देखभाल (Autism Care)',
+      'Emergency Care': 'आपातकालीन देखभाल (Emergency Care)',
+    },
+    ta: {
+      'Elderly Care': 'முதியோர் பராமரிப்பு (Elderly Care)',
+      'Alzheimer and Dementia Care': 'அல்சைமர் மற்றும் டிமென்ஷியா பராமரிப்பு',
+      'Baby Care': 'குழந்தை பராமரிப்பு (Baby Care)',
+      'Post-Hospital Recovery': 'மருத்துவமனைக்கு பிந்தைய பராமரிப்பு',
+      'Live-in Care': 'தங்கி பராமரிக்கும் சேவை (Live-in Care)',
+      'Autism Care': 'ஆட்டிசம் பராமரிப்பு (Autism Care)',
+      'Emergency Care': 'அவசர சிகிச்சை பராமரிப்பு (Emergency Care)',
+    },
+  };
+
+  const LANGUAGE_LABELS: Record<string, Record<string, string>> = {
+    hi: {
+      English: 'अंग्रेज़ी (English)',
+      Hindi: 'हिंदी (Hindi)',
+      Tamil: 'तमिल (Tamil)',
+      Telugu: 'तेलुगु (Telugu)',
+      Kannada: 'कन्नड़ (Kannada)',
+      Malayalam: 'मलयालम (Malayalam)',
+      Bengali: 'बंगाली (Bengali)',
+      Marathi: 'मराठी (Marathi)',
+    },
+    ta: {
+      English: 'ஆங்கிலம் (English)',
+      Hindi: 'இந்தி (Hindi)',
+      Tamil: 'தமிழ் (Tamil)',
+      Telugu: 'தெலுங்கு (Telugu)',
+      Kannada: 'கன்னடம் (Kannada)',
+      Malayalam: 'மலையாளம் (Malayalam)',
+      Bengali: 'வங்காளம் (Bengali)',
+      Marathi: 'மராத்தி (Marathi)',
+    },
+  };
+
+  const ID_TYPE_LABELS: Record<string, Record<string, string>> = {
+    en: {
+      AADHAAR: 'Aadhaar Card (Masked)',
+      VOTER_ID: 'Voter ID',
+      PASSPORT: 'Passport',
+      DRIVING_LICENSE: 'Driving License',
+    },
+    hi: {
+      AADHAAR: 'आधार कार्ड (मास्क किया हुआ)',
+      VOTER_ID: 'मतदाता पहचान पत्र (Voter ID)',
+      PASSPORT: 'पासपोर्ट (Passport)',
+      DRIVING_LICENSE: 'ड्राइविंग लाइसेंस (Driving License)',
+    },
+    ta: {
+      AADHAAR: 'ஆதார் அட்டை (மறைக்கப்பட்டது)',
+      VOTER_ID: 'வாக்காளர் அடையாள அட்டை',
+      PASSPORT: 'பாஸ்போர்ட் (Passport)',
+      DRIVING_LICENSE: 'ஓட்டுநர் உரிமம் (Driving License)',
+    },
+  };
+
+  const cityOptions = CITIES.map((c) => ({
+    value: c,
+    label: CITY_LABELS[currentLang]?.[c] || c,
+  }));
+
+  const qualOptions = QUALIFICATIONS.map((q) => ({
+    value: q,
+    label: QUALIFICATION_LABELS[currentLang]?.[q] || QUALIFICATION_LABELS.en[q] || q,
+  }));
+
+  const availOptions = AVAILABILITY_TYPES.map((a) => ({
+    value: a,
+    label: AVAILABILITY_LABELS[currentLang]?.[a] || AVAILABILITY_LABELS.en[a] || a,
+  }));
+
+  const skillOptions = SKILLS.map((s) => ({
+    value: s,
+    label: SKILL_LABELS[currentLang]?.[s] || s,
+  }));
+
+  const langOptions = LANGUAGES.map((l) => ({
+    value: l,
+    label: LANGUAGE_LABELS[currentLang]?.[l] || l,
+  }));
+
+  const idTypeOptions = [
+    { value: 'AADHAAR', label: ID_TYPE_LABELS[currentLang]?.AADHAAR || ID_TYPE_LABELS.en.AADHAAR },
+    { value: 'VOTER_ID', label: ID_TYPE_LABELS[currentLang]?.VOTER_ID || ID_TYPE_LABELS.en.VOTER_ID },
+    { value: 'PASSPORT', label: ID_TYPE_LABELS[currentLang]?.PASSPORT || ID_TYPE_LABELS.en.PASSPORT },
+    { value: 'DRIVING_LICENSE', label: ID_TYPE_LABELS[currentLang]?.DRIVING_LICENSE || ID_TYPE_LABELS.en.DRIVING_LICENSE },
+  ];
 
   return (
     <div className="max-w-3xl mx-auto py-2">
@@ -788,13 +930,14 @@ export const ApplyForm: React.FC = () => {
 
                 <div className="max-w-xs">
                   <Select
-                    label="Identity Document Type"
-                    options={[
-                      { value: 'AADHAAR', label: 'Aadhaar Card (Masked)' },
-                      { value: 'VOTER_ID', label: 'Voter ID' },
-                      { value: 'PASSPORT', label: 'Passport' },
-                      { value: 'DRIVING_LICENSE', label: 'Driving License' },
-                    ]}
+                    label={
+                      currentLang === 'hi'
+                        ? 'पहचान दस्तावेज़ का प्रकार'
+                        : currentLang === 'ta'
+                        ? 'அடையாள ஆவண வகை'
+                        : 'Identity Document Type'
+                    }
+                    options={idTypeOptions}
                     value={idType}
                     onChange={(e) => setIdType(e.target.value)}
                   />
@@ -1158,7 +1301,15 @@ export const ApplyForm: React.FC = () => {
                   <h3 className="text-sm font-heading font-semibold text-brand-heading">
                     {t('apply.step5.summaryHeading')}
                   </h3>
-                  <Badge label={formData.qualification} variant="blue" size="sm" />
+                  <Badge
+                    label={
+                      QUALIFICATION_LABELS[currentLang]?.[formData.qualification] ||
+                      QUALIFICATION_LABELS.en[formData.qualification] ||
+                      formData.qualification
+                    }
+                    variant="blue"
+                    size="sm"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -1177,13 +1328,17 @@ export const ApplyForm: React.FC = () => {
                   <div>
                     <span className="text-gray-400 block">Residence City & Experience</span>
                     <span className="font-medium text-brand-heading">
-                      {formData.city} ({formData.experienceYears} years)
+                      {CITY_LABELS[currentLang]?.[formData.city] || formData.city} (
+                      {formData.experienceYears}{' '}
+                      {currentLang === 'hi' ? 'वर्ष' : currentLang === 'ta' ? 'ஆண்டுகள்' : 'years'})
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Availability</span>
                     <span className="font-medium text-brand-heading">
-                      {formData.availabilityType}
+                      {AVAILABILITY_LABELS[currentLang]?.[formData.availabilityType] ||
+                        AVAILABILITY_LABELS.en[formData.availabilityType] ||
+                        formData.availabilityType}
                     </span>
                   </div>
                 </div>
@@ -1192,7 +1347,12 @@ export const ApplyForm: React.FC = () => {
                   <span className="text-gray-400 text-xs block mb-1.5">Selected Skills:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {formData.skills.map((s) => (
-                      <Chip key={s} label={s} size="sm" variant="action" />
+                      <Chip
+                        key={s}
+                        label={SKILL_LABELS[currentLang]?.[s] || s}
+                        size="sm"
+                        variant="action"
+                      />
                     ))}
                   </div>
                 </div>
@@ -1209,7 +1369,9 @@ export const ApplyForm: React.FC = () => {
                         <span className="font-semibold block truncate">
                           {idProofFile?.name || 'No file'}
                         </span>
-                        <span className="text-[10px] text-gray-400">{idType}</span>
+                        <span className="text-[10px] text-gray-400">
+                          {ID_TYPE_LABELS[currentLang]?.[idType] || ID_TYPE_LABELS.en[idType] || idType}
+                        </span>
                       </div>
                     </div>
                     <div className="p-2.5 rounded-xl bg-white border border-gray-200/80 flex items-center gap-2">
