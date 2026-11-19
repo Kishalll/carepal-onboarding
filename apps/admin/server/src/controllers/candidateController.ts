@@ -8,6 +8,8 @@ import {
   Qualification,
   AvailabilityType,
   VerificationStatus,
+  sendStageEmail,
+  resendEmailLog,
 } from '@carepal/shared';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -270,6 +272,9 @@ export async function getCandidateById(req: Request, res: Response): Promise<voi
           orderBy: { createdAt: 'desc' },
         },
         interviewSlot: true,
+        emailLogs: {
+          orderBy: { sentAt: 'desc' },
+        },
       },
     });
 
@@ -368,8 +373,8 @@ export async function streamDocument(req: Request, res: Response): Promise<void>
 const NORMAL_STAGE_ORDER: Stage[] = [
   Stage.APPLIED,
   Stage.SCREENING,
-  Stage.INTERVIEW,
   Stage.VERIFIED,
+  Stage.INTERVIEW,
   Stage.ONBOARDED,
 ];
 
@@ -471,10 +476,10 @@ export async function changeCandidateStage(
       }
     }
 
-    // Rule 6: ONBOARDED is allowed only from VERIFIED
-    if (targetStage === Stage.ONBOARDED && fromStage !== Stage.VERIFIED) {
+    // Rule 6: ONBOARDED is allowed only from INTERVIEW
+    if (targetStage === Stage.ONBOARDED && fromStage !== Stage.INTERVIEW) {
       res.status(400).json({
-        error: 'Candidate can only be onboarded from the Verified stage',
+        error: 'Candidate can only be onboarded from the Interview stage',
       });
       return;
     }
@@ -516,6 +521,19 @@ export async function changeCandidateStage(
       success: true,
       candidate: updatedCandidate,
       stageHistory,
+    });
+
+    // Non-blocking stage transition email dispatch
+    sendStageEmail({
+      candidateId: candidate.id,
+      candidateName: candidate.fullName,
+      recipientEmail: candidate.email,
+      stage: targetStage,
+      preferredLanguage: candidate.preferredLanguage,
+      applicationId: candidate.applicationId,
+      reasonNote: note || null,
+    }).catch((emailErr) => {
+      console.error('[Stage Email Dispatch Error] Non-blocking email dispatch failed:', emailErr);
     });
   } catch (err) {
     console.error('Stage transition transaction error:', err);
@@ -868,7 +886,7 @@ export async function getVerificationQueue(_req: AuthenticatedRequest, res: Resp
   try {
     const candidates = await prisma.candidate.findMany({
       where: {
-        stage: { in: [Stage.SCREENING, Stage.INTERVIEW, Stage.APPLIED] },
+        stage: { in: [Stage.APPLIED, Stage.SCREENING, Stage.VERIFIED] },
       },
       orderBy: [
         { stage: 'asc' },
@@ -967,5 +985,58 @@ export async function getVerificationQueue(_req: AuthenticatedRequest, res: Resp
     res.status(500).json({ error: 'Failed to retrieve verification queue' });
   }
 }
+
+/**
+ * POST /api/candidates/:id/emails/:emailId/resend
+ * Re-triggers delivery for a specific email log entry.
+ */
+export async function resendCandidateEmail(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  try {
+    const { id, emailId } = req.params;
+    if (!id || !emailId) {
+      res.status(400).json({ error: 'Candidate ID and email ID are required' });
+      return;
+    }
+
+    const candidate = await prisma.candidate.findFirst({
+      where: { OR: [{ id }, { applicationId: id }] },
+    });
+
+    if (!candidate) {
+      res.status(404).json({ error: 'Candidate not found' });
+      return;
+    }
+
+    const log = await prisma.emailLog.findFirst({
+      where: { id: emailId, candidateId: candidate.id },
+    });
+
+    if (!log) {
+      res.status(404).json({ error: 'Email record not found for this candidate' });
+      return;
+    }
+
+    const result = await resendEmailLog(log.id);
+
+    const updatedLogs = await prisma.emailLog.findMany({
+      where: { candidateId: candidate.id },
+      orderBy: { sentAt: 'desc' },
+    });
+
+    res.json({
+      success: result.success,
+      message: result.success ? 'Email resent successfully' : 'Failed to resend email',
+      error: result.error,
+      emailLogs: updatedLogs,
+    });
+  } catch (err: unknown) {
+    console.error('Error resending email:', err);
+    res.status(500).json({ error: (err as Error).message || 'Failed to resend email' });
+  }
+}
+
 
 

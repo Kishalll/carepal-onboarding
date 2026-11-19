@@ -11,6 +11,7 @@ import {
   addCandidateNote,
   updateChecklistItem,
   updateDocumentStatus,
+  resendCandidateEmail,
 } from '../controllers/candidateController.js';
 
 const router = Router();
@@ -23,6 +24,7 @@ router.get('/:id', requireAuth, getCandidateById);
 router.get('/:id/documents/:docId/view-link', requireAuth, getDocumentViewLink);
 router.post('/:id/stage', requireAuth, changeCandidateStage);
 router.post('/:id/notes', requireAuth, addCandidateNote);
+router.post('/:id/emails/:emailId/resend', requireAuth, resendCandidateEmail);
 router.patch('/:id/checklist/:itemId', requireAuth, updateChecklistItem);
 router.patch('/:id/documents/:docId/status', requireAuth, updateDocumentStatus);
 

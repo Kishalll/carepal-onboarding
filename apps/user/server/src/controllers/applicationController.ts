@@ -6,6 +6,7 @@ import {
   normalizeIndianPhone,
   storageAdapter,
   validateDocumentFile,
+  sendStageEmail,
 } from '@carepal/shared';
 import { Qualification, Stage, VerificationStatus, DocumentCategory } from '@prisma/client';
 
@@ -206,17 +207,6 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
         },
       });
 
-      // Initial confirmation email log
-      await tx.emailLog.create({
-        data: {
-          candidateId: newCandidate.id,
-          recipientEmail: newCandidate.email,
-          stage: Stage.APPLIED,
-          subject: 'TheCarePal: Application Received',
-          status: 'SENT',
-        },
-      });
-
       // Persist attached documents if provided
       for (const item of filesToProcess) {
         const ext = path.extname(item.file.originalname).toLowerCase();
@@ -243,6 +233,18 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
       }
 
       return newCandidate;
+    });
+
+    // Non-blocking confirmation email dispatch
+    sendStageEmail({
+      candidateId: candidate.id,
+      candidateName: candidate.fullName,
+      recipientEmail: candidate.email,
+      stage: Stage.APPLIED,
+      preferredLanguage: candidate.preferredLanguage,
+      applicationId: candidate.applicationId,
+    }).catch((emailErr) => {
+      console.error('[Application Email Error] Non-blocking email dispatch failed:', emailErr);
     });
 
     res.status(201).json({

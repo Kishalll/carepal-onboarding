@@ -279,8 +279,8 @@ async function main() {
 
     // Checklist items
     const isNurse = profile.qual !== Qualification.TRAINED_CAREGIVER;
-    const isFullyVerified = targetStage === Stage.VERIFIED || targetStage === Stage.ONBOARDED;
-    const isPartiallyVerified = targetStage === Stage.INTERVIEW || targetStage === Stage.SCREENING;
+    const isFullyVerified = targetStage === Stage.VERIFIED || targetStage === Stage.INTERVIEW || targetStage === Stage.ONBOARDED;
+    const isPartiallyVerified = targetStage === Stage.SCREENING;
 
     const checklistDefs = [
       { code: 'ID_MATCH', label: 'ID proof matches applicant name', required: true },
@@ -353,26 +353,26 @@ async function main() {
           },
         });
 
-        if (targetStage === Stage.INTERVIEW || targetStage === Stage.VERIFIED || targetStage === Stage.ONBOARDED) {
+        if (targetStage === Stage.VERIFIED || targetStage === Stage.INTERVIEW || targetStage === Stage.ONBOARDED) {
           await prisma.stageHistory.create({
             data: {
               candidateId: candidate.id,
               fromStage: Stage.SCREENING,
-              toStage: Stage.INTERVIEW,
-              reasonNote: 'Shortlisted for clinical interview.',
+              toStage: Stage.VERIFIED,
+              reasonNote: 'All credentials and background checks verified.',
               changedById: admin.id,
               changedByName: admin.name,
             },
           });
         }
 
-        if (targetStage === Stage.VERIFIED || targetStage === Stage.ONBOARDED) {
+        if (targetStage === Stage.INTERVIEW || targetStage === Stage.ONBOARDED) {
           await prisma.stageHistory.create({
             data: {
               candidateId: candidate.id,
-              fromStage: Stage.INTERVIEW,
-              toStage: Stage.VERIFIED,
-              reasonNote: 'All credentials and background checks verified.',
+              fromStage: Stage.VERIFIED,
+              toStage: Stage.INTERVIEW,
+              reasonNote: 'Shortlisted for clinical interview.',
               changedById: admin.id,
               changedByName: admin.name,
             },
@@ -383,7 +383,7 @@ async function main() {
           await prisma.stageHistory.create({
             data: {
               candidateId: candidate.id,
-              fromStage: Stage.VERIFIED,
+              fromStage: Stage.INTERVIEW,
               toStage: Stage.ONBOARDED,
               reasonNote: 'Onboarding completed and care badge issued.',
               changedById: admin.id,

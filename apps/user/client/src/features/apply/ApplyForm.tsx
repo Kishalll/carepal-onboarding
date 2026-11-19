@@ -12,7 +12,7 @@ import {
   useToast,
   Badge,
 } from '@carepal/ui';
-import { CITIES, QUALIFICATIONS, AVAILABILITY_TYPES, SKILLS, LANGUAGES } from '@carepal/shared';
+import { CITIES, QUALIFICATIONS, AVAILABILITY_TYPES, SKILLS, LANGUAGES } from '@carepal/shared/constants';
 import {
   CheckCircle2,
   Copy,

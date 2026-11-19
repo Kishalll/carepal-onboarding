@@ -52,13 +52,13 @@ interface BoardCandidate {
 const STAGE_COLUMNS: { stage: StageType; label: string; accentColor: string; bgAccent: string }[] = [
   { stage: 'APPLIED', label: 'Applied', accentColor: 'bg-blue-500', bgAccent: 'bg-blue-50/50' },
   { stage: 'SCREENING', label: 'Screening', accentColor: 'bg-amber-500', bgAccent: 'bg-amber-50/50' },
-  { stage: 'INTERVIEW', label: 'Interview', accentColor: 'bg-purple-500', bgAccent: 'bg-purple-50/50' },
   { stage: 'VERIFIED', label: 'Verified', accentColor: 'bg-teal-500', bgAccent: 'bg-teal-50/50' },
+  { stage: 'INTERVIEW', label: 'Interview', accentColor: 'bg-purple-500', bgAccent: 'bg-purple-50/50' },
   { stage: 'ONBOARDED', label: 'Onboarded', accentColor: 'bg-emerald-500', bgAccent: 'bg-emerald-50/50' },
   { stage: 'REJECTED', label: 'Rejected', accentColor: 'bg-rose-500', bgAccent: 'bg-rose-50/50' },
 ];
 
-const NORMAL_ORDER: StageType[] = ['APPLIED', 'SCREENING', 'INTERVIEW', 'VERIFIED', 'ONBOARDED'];
+const NORMAL_ORDER: StageType[] = ['APPLIED', 'SCREENING', 'VERIFIED', 'INTERVIEW', 'ONBOARDED'];
 
 // Draggable Card Component
 const DraggableCandidateCard: React.FC<{

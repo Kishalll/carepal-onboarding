@@ -74,6 +74,16 @@ interface NoteItem {
   };
 }
 
+export interface EmailLogItem {
+  id: string;
+  recipientEmail: string;
+  stage: string;
+  subject: string;
+  status: string;
+  error?: string | null;
+  sentAt: string;
+}
+
 export interface CandidateDetail {
   id: string;
   applicationId: string;
@@ -100,11 +110,12 @@ export interface CandidateDetail {
   checklistItems: ChecklistItem[];
   notes: NoteItem[];
   stageHistory: StageHistoryItem[];
+  emailLogs?: EmailLogItem[];
 }
 
 interface CandidateDetailDrawerProps {
   candidateId: string | null;
-  initialTab?: 'profile' | 'documents' | 'checklist' | 'timeline';
+  initialTab?: 'profile' | 'documents' | 'checklist' | 'timeline' | 'emails';
   onClose: () => void;
   onCandidateUpdated?: () => void;
 }
@@ -125,7 +136,15 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'checklist' | 'timeline'>(initialTab);
+  const [activeTab, setActiveTab] = useState<
+    'profile' | 'documents' | 'checklist' | 'timeline' | 'emails'
+  >(initialTab);
+
+  // Email resending state
+  const [resendingEmailId, setResendingEmailId] = useState<string | null>(null);
+  const [emailFeedback, setEmailFeedback] = useState<{ message: string; isError: boolean } | null>(
+    null
+  );
 
   // Preview modal state
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
@@ -171,6 +190,37 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
       console.error('Failed to post note:', err);
     } finally {
       setIsSubmittingNote(false);
+    }
+  };
+
+  const handleResendEmail = async (emailId: string) => {
+    if (!candidate) return;
+    setResendingEmailId(emailId);
+    setEmailFeedback(null);
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}/emails/${emailId}/resend`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEmailFeedback({ message: 'Email resent successfully.', isError: false });
+        if (data.emailLogs) {
+          setCandidate((prev) => (prev ? { ...prev, emailLogs: data.emailLogs } : null));
+        }
+      } else {
+        setEmailFeedback({
+          message: data.error || data.message || 'Failed to resend email.',
+          isError: true,
+        });
+      }
+    } catch (err: unknown) {
+      setEmailFeedback({
+        message: err instanceof Error ? err.message : 'Network error while resending email.',
+        isError: true,
+      });
+    } finally {
+      setResendingEmailId(null);
     }
   };
 
@@ -441,6 +491,22 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
               }`}
             >
               Timeline & Notes
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('emails')}
+              className={`py-3 px-4 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                activeTab === 'emails'
+                  ? 'border-brand-action text-brand-action'
+                  : 'border-transparent text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <span>Emails</span>
+              {candidate && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-bold">
+                  {candidate.emailLogs?.length || 0}
+                </span>
+              )}
             </button>
           </div>
 
@@ -941,6 +1007,111 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Emails & Communication Tab */}
+                {activeTab === 'emails' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Automated Stage Notifications ({candidate.emailLogs?.length || 0})
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Delivery records for candidate status emails sent in their preferred language ({candidate.preferredLanguage}).
+                        </p>
+                      </div>
+                    </div>
+
+                    {emailFeedback && (
+                      <div
+                        className={`p-3 rounded-xl text-xs font-medium flex items-center justify-between ${
+                          emailFeedback.isError
+                            ? 'bg-rose-50 border border-rose-200 text-rose-700'
+                            : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                        }`}
+                      >
+                        <span>{emailFeedback.message}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEmailFeedback(null)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {!candidate.emailLogs || candidate.emailLogs.length === 0 ? (
+                      <div className="p-8 text-center bg-white rounded-2xl border border-gray-200/80 shadow-2xs">
+                        <Mail className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-xs font-medium text-slate-600">No email records found</p>
+                        <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                          Emails are automatically dispatched when candidate stage changes occur, or when application is submitted.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {candidate.emailLogs.map((log) => (
+                          <div
+                            key={log.id}
+                            className="p-4 bg-white rounded-xl border border-gray-200/80 shadow-2xs space-y-2.5 transition-all hover:border-slate-300"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      log.status === 'SENT'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    }`}
+                                  >
+                                    {log.status}
+                                  </span>
+                                  <Badge label={log.stage} stage={log.stage as StageType} size="sm" />
+                                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    {new Date(log.sentAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                <h4 className="text-sm font-semibold text-slate-900 truncate" title={log.subject}>
+                                  {log.subject}
+                                </h4>
+                                <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                                  <span>To:</span>
+                                  <span className="font-mono text-slate-700">{log.recipientEmail}</span>
+                                </div>
+                              </div>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={resendingEmailId === log.id}
+                                onClick={() => handleResendEmail(log.id)}
+                                className="text-xs h-8 px-3 shrink-0 gap-1.5 text-slate-700 hover:text-brand-action hover:border-brand-action"
+                                title="Resend notification email"
+                              >
+                                <RefreshCw
+                                  className={`w-3.5 h-3.5 ${
+                                    resendingEmailId === log.id ? 'animate-spin text-brand-action' : ''
+                                  }`}
+                                />
+                                <span>{resendingEmailId === log.id ? 'Resending...' : 'Resend'}</span>
+                              </Button>
+                            </div>
+
+                            {log.error && (
+                              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-100 text-[11px] text-rose-700 flex items-start gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500" />
+                                <span>Error: {log.error}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </>

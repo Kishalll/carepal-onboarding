@@ -5,6 +5,16 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./constants": {
+      "types": "./dist/config/constants.d.ts",
+      "default": "./dist/config/constants.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "prisma:generate": "prisma generate",
@@ -20,11 +30,13 @@
     "@prisma/client": "^6.4.1",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
+    "nodemailer": "^10.6.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.13.5",
+    "@types/nodemailer": "^8.0.2",
     "prisma": "^6.4.1",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"

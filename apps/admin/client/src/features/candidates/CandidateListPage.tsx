@@ -63,8 +63,8 @@ const QUALIFICATIONS = [
 const STAGES = [
   { value: 'APPLIED', label: 'Applied' },
   { value: 'SCREENING', label: 'Screening' },
-  { value: 'INTERVIEW', label: 'Interview' },
   { value: 'VERIFIED', label: 'Verified' },
+  { value: 'INTERVIEW', label: 'Interview' },
   { value: 'ONBOARDED', label: 'Onboarded' },
   { value: 'REJECTED', label: 'Rejected' },
 ];

@@ -22,7 +22,7 @@ services:
     container_name: carepal-mailpit
     restart: unless-stopped
     ports:
-      - "1025:1025" # SMTP port
+      - "1025:1025" # Mail catcher port
       - "8025:8025" # Web UI port
     environment:
       MP_MAX_MESSAGES: 500
@@ -43,11 +43,11 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgresql://carepal:carepal_secret@postgres:5432/carepal_db?schema=public
       STORAGE_DIR: /app/storage/uploads
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      SMTP_USER: ""
-      SMTP_PASS: ""
-      SMTP_SECURE: "false"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USER: ""
+      MAIL_PASS: ""
+      MAIL_SECURE: "false"
       EMAIL_FROM: "TheCarePal Careers <careers@thecarepal.test>"
     volumes:
       - ./apps/user:/app/apps/user
@@ -79,11 +79,11 @@ services:
       DATABASE_URL: postgresql://carepal:carepal_secret@postgres:5432/carepal_db?schema=public
       STORAGE_DIR: /app/storage/uploads
       USER_APP_URL: http://localhost:3000
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      SMTP_USER: ""
-      SMTP_PASS: ""
-      SMTP_SECURE: "false"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USER: ""
+      MAIL_PASS: ""
+      MAIL_SECURE: "false"
       EMAIL_FROM: "TheCarePal Admin <admin@thecarepal.test>"
     volumes:
       - ./apps/admin:/app/apps/admin
