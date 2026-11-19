@@ -31,6 +31,7 @@ import {
   Camera,
   Trash2,
   FileCheck2,
+  Globe,
 } from 'lucide-react';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
 
@@ -171,13 +172,6 @@ export const ApplyForm: React.FC = () => {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
     }
   }, [formData, submittedAppId]);
-
-  // Keep preferredLanguage synced with active i18n language
-  useEffect(() => {
-    if (i18n.language && formData.preferredLanguage !== i18n.language) {
-      setFormData((prev) => ({ ...prev, preferredLanguage: i18n.language }));
-    }
-  }, [i18n.language, formData.preferredLanguage]);
 
   const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -1245,6 +1239,57 @@ export const ApplyForm: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Preferred Notification / Communication Language */}
+              <div className="p-4 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-brand-action flex items-center justify-center shrink-0">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-brand-heading block">
+                      Preferred Language for Email Updates
+                    </label>
+                    <p className="text-[11px] text-gray-500">
+                      Choose which language you prefer for all status notifications, interview invites, and hiring updates.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  {[
+                    { code: 'en', label: 'English', sub: 'English' },
+                    { code: 'hi', label: 'हिन्दी', sub: 'Hindi' },
+                    { code: 'ta', label: 'தமிழ்', sub: 'Tamil' },
+                  ].map((lang) => {
+                    const isSelected = formData.preferredLanguage === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => updateField('preferredLanguage', lang.code)}
+                        className={`p-3 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-brand-action bg-brand-softBlueLight ring-2 ring-brand-action/20'
+                            : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-sm font-bold ${
+                              isSelected ? 'text-brand-action' : 'text-slate-800'
+                            }`}
+                          >
+                            {lang.label}
+                          </span>
+                          {isSelected && <Check className="w-4 h-4 text-brand-action" />}
+                        </div>
+                        <span className="text-[11px] text-gray-400 block mt-0.5">{lang.sub}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
