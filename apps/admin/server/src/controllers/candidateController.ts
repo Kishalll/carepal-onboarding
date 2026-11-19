@@ -8,6 +8,7 @@ import {
   Qualification,
   AvailabilityType,
 } from '@carepal/shared';
+import { AuthenticatedRequest } from '../middleware/auth.js';
 
 function parseArrayParam(param: unknown): string[] {
   if (!param) return [];
@@ -362,3 +363,291 @@ export async function streamDocument(req: Request, res: Response): Promise<void>
   res.setHeader('Cache-Control', 'private, max-age=900');
   res.send(buffer);
 }
+
+const NORMAL_STAGE_ORDER: Stage[] = [
+  Stage.APPLIED,
+  Stage.SCREENING,
+  Stage.INTERVIEW,
+  Stage.VERIFIED,
+  Stage.ONBOARDED,
+];
+
+export async function changeCandidateStage(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const { id } = req.params;
+  const { toStage, reasonNote } = req.body || {};
+
+  if (!toStage || !Object.values(Stage).includes(toStage as Stage)) {
+    res.status(400).json({ error: 'Valid target stage is required' });
+    return;
+  }
+
+  const candidate = await prisma.candidate.findFirst({
+    where: { OR: [{ id }, { applicationId: id }] },
+    include: { checklistItems: true },
+  });
+
+  if (!candidate) {
+    res.status(404).json({ error: 'Candidate not found' });
+    return;
+  }
+
+  const fromStage = candidate.stage;
+  const targetStage = toStage as Stage;
+  const note = typeof reasonNote === 'string' ? reasonNote.trim() : '';
+
+  if (fromStage === targetStage) {
+    res.status(400).json({ error: `Candidate is already in ${targetStage} stage` });
+    return;
+  }
+
+  // Rule 3: Moving to REJECTED requires a non-empty reason note
+  if (targetStage === Stage.REJECTED) {
+    if (!note) {
+      res.status(400).json({ error: 'A reason note is required when rejecting a candidate' });
+      return;
+    }
+  } else if (fromStage === Stage.REJECTED) {
+    // Rule 4: Reopening from REJECTED is allowed only to SCREENING with a note
+    if (targetStage !== Stage.SCREENING) {
+      res.status(400).json({
+        error: 'Rejected candidates can only be reopened to the Screening stage',
+      });
+      return;
+    }
+    if (!note) {
+      res.status(400).json({
+        error: 'A reason note is required when reopening a rejected candidate',
+      });
+      return;
+    }
+  } else {
+    // Both fromStage and targetStage are in normal progression
+    const fromIdx = NORMAL_STAGE_ORDER.indexOf(fromStage);
+    const toIdx = NORMAL_STAGE_ORDER.indexOf(targetStage);
+
+    if (fromIdx === -1 || toIdx === -1) {
+      res.status(400).json({ error: `Invalid transition from ${fromStage} to ${targetStage}` });
+      return;
+    }
+
+    const stepDiff = toIdx - fromIdx;
+
+    if (stepDiff > 1) {
+      res.status(400).json({
+        error: `Cannot skip stages. Candidates must advance one stage at a time: ${fromStage} to ${NORMAL_STAGE_ORDER[fromIdx + 1]}`,
+      });
+      return;
+    }
+
+    if (stepDiff === -1) {
+      if (!note) {
+        res.status(400).json({
+          error: 'A note explaining the reason is required when moving a candidate back to a previous stage',
+        });
+        return;
+      }
+    } else if (stepDiff < -1) {
+      res.status(400).json({
+        error: 'Cannot move backward by more than one stage at a time',
+      });
+      return;
+    }
+
+    // Rule 5: Stage gate for VERIFIED
+    if (targetStage === Stage.VERIFIED) {
+      const requiredItems = candidate.checklistItems.filter((item) => item.required);
+      const unverifiedItems = requiredItems.filter((item) => item.status !== 'VERIFIED');
+
+      if (unverifiedItems.length > 0) {
+        res.status(400).json({
+          error: `Cannot move candidate to Verified: ${unverifiedItems.length} required checklist item(s) are not verified yet.`,
+          unverifiedItems: unverifiedItems.map((i) => i.label),
+        });
+        return;
+      }
+    }
+
+    // Rule 6: ONBOARDED is allowed only from VERIFIED
+    if (targetStage === Stage.ONBOARDED && fromStage !== Stage.VERIFIED) {
+      res.status(400).json({
+        error: 'Candidate can only be onboarded from the Verified stage',
+      });
+      return;
+    }
+  }
+
+  const adminUserId = req.user?.id;
+  if (!adminUserId) {
+    res.status(401).json({ error: 'Authenticated admin user ID is required' });
+    return;
+  }
+
+  try {
+    const [updatedCandidate, stageHistory] = await prisma.$transaction([
+      prisma.candidate.update({
+        where: { id: candidate.id },
+        data: {
+          stage: targetStage,
+          stageUpdatedAt: new Date(),
+        },
+      }),
+      prisma.stageHistory.create({
+        data: {
+          candidateId: candidate.id,
+          fromStage,
+          toStage: targetStage,
+          reasonNote: note || null,
+          changedById: adminUserId,
+          changedByName: req.user?.name || 'Operations Admin',
+        },
+        include: {
+          changedBy: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      candidate: updatedCandidate,
+      stageHistory,
+    });
+  } catch (err) {
+    console.error('Stage transition transaction error:', err);
+    res.status(500).json({ error: 'Failed to complete stage transition in database' });
+  }
+}
+
+export async function addCandidateNote(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  const { id } = req.params;
+  const { content } = req.body || {};
+
+  if (!content || typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ error: 'Note content cannot be empty' });
+    return;
+  }
+
+  const candidate = await prisma.candidate.findFirst({
+    where: { OR: [{ id }, { applicationId: id }] },
+  });
+
+  if (!candidate) {
+    res.status(404).json({ error: 'Candidate not found' });
+    return;
+  }
+
+  const adminUserId = req.user?.id;
+  if (!adminUserId) {
+    res.status(401).json({ error: 'Authentication required to post note' });
+    return;
+  }
+
+  try {
+    const note = await prisma.note.create({
+      data: {
+        candidateId: candidate.id,
+        authorId: adminUserId,
+        authorName: req.user?.name || 'Operations Admin',
+        content: content.trim(),
+      },
+      include: {
+        author: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    res.status(201).json({ note });
+  } catch (err) {
+    console.error('Error creating note:', err);
+    res.status(500).json({ error: 'Failed to record internal note' });
+  }
+}
+
+export async function getCandidatesBoard(
+  _req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const candidates = await prisma.candidate.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        documents: {
+          select: { id: true, category: true, status: true },
+        },
+        checklistItems: {
+          select: { id: true, status: true, required: true },
+        },
+      },
+    });
+
+    const board: Record<Stage, Record<string, unknown>[]> = {
+      APPLIED: [],
+      SCREENING: [],
+      INTERVIEW: [],
+      VERIFIED: [],
+      ONBOARDED: [],
+      REJECTED: [],
+    };
+
+    const counts: Record<Stage, number> = {
+      APPLIED: 0,
+      SCREENING: 0,
+      INTERVIEW: 0,
+      VERIFIED: 0,
+      ONBOARDED: 0,
+      REJECTED: 0,
+    };
+
+    candidates.forEach((c) => {
+      const daysInStage = Math.max(
+        0,
+        Math.floor((Date.now() - new Date(c.stageUpdatedAt).getTime()) / (1000 * 60 * 60 * 24))
+      );
+
+      const totalDocs = c.documents.length;
+      const verifiedDocs = c.documents.filter((d) => d.status === 'VERIFIED').length;
+      const totalChecklist = c.checklistItems.length;
+      const verifiedChecklist = c.checklistItems.filter((chk) => chk.status === 'VERIFIED').length;
+
+      const card = {
+        id: c.id,
+        applicationId: c.applicationId,
+        fullName: c.fullName,
+        phone: c.phone,
+        email: c.email,
+        city: c.city,
+        qualification: c.qualification,
+        skills: c.skills,
+        experienceYears: c.experienceYears,
+        stage: c.stage,
+        stageUpdatedAt: c.stageUpdatedAt,
+        daysInStage,
+        stats: {
+          totalDocs,
+          verifiedDocs,
+          totalChecklist,
+          verifiedChecklist,
+        },
+      };
+
+      if (board[c.stage]) {
+        board[c.stage].push(card);
+        counts[c.stage]++;
+      }
+    });
+
+    res.json({ board, counts, total: candidates.length });
+  } catch (err) {
+    console.error('Error fetching board candidates:', err);
+    res.status(500).json({ error: 'Failed to retrieve candidate board' });
+  }
+}
+

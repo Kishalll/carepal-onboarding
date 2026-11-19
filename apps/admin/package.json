@@ -13,6 +13,8 @@
   "dependencies": {
     "@carepal/shared": "*",
     "@carepal/ui": "*",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/utilities": "^3.2.2",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",

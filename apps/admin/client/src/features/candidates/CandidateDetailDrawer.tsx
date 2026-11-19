@@ -114,6 +114,37 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
 
+  // Add note form state
+  const [newNoteContent, setNewNoteContent] = useState<string>('');
+  const [isSubmittingNote, setIsSubmittingNote] = useState<boolean>(false);
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNoteContent.trim() || !candidate) return;
+
+    setIsSubmittingNote(true);
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content: newNoteContent.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCandidate({
+          ...candidate,
+          notes: [data.note, ...candidate.notes],
+        });
+        setNewNoteContent('');
+      }
+    } catch (err) {
+      console.error('Failed to post note:', err);
+    } finally {
+      setIsSubmittingNote(false);
+    }
+  };
+
   useEffect(() => {
     if (!candidateId) {
       setCandidate(null);
@@ -639,6 +670,29 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                       <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                         Staff Notes ({candidate.notes.length})
                       </h3>
+
+                      {/* Add Note Input Form */}
+                      <form onSubmit={handleAddNote} className="mb-4">
+                        <textarea
+                          rows={2}
+                          value={newNoteContent}
+                          onChange={(e) => setNewNoteContent(e.target.value)}
+                          placeholder="Type an internal note about this candidate..."
+                          className="w-full p-3 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-action/20 focus:border-brand-action transition-all resize-none shadow-2xs"
+                        />
+                        <div className="flex justify-end mt-2">
+                          <Button
+                            type="submit"
+                            variant="primary"
+                            size="sm"
+                            disabled={isSubmittingNote || !newNoteContent.trim()}
+                            className="text-xs py-1.5 px-3 h-8 shadow-2xs"
+                          >
+                            {isSubmittingNote ? 'Saving...' : 'Add Note'}
+                          </Button>
+                        </div>
+                      </form>
+
                       {candidate.notes.length === 0 ? (
                         <div className="text-xs text-gray-400 italic">No notes entered yet.</div>
                       ) : (
