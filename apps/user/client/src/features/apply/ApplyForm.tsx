@@ -876,19 +876,20 @@ export const ApplyForm: React.FC = () => {
                   accept=".pdf,.png,.jpg,.jpeg"
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      const err = validateClientFile(e.target.files[0]);
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) {
+                      const err = validateClientFile(file);
                       if (err) {
                         setFieldErrors((prev) => ({ ...prev, idProof: err }));
                       } else {
-                        setIdProofFile(e.target.files[0]);
+                        setIdProofFile(file);
                         setFieldErrors((prev) => {
                           const c = { ...prev };
                           delete c.idProof;
                           return c;
                         });
                       }
-                      e.target.value = '';
                     }
                   }}
                 />
@@ -989,19 +990,20 @@ export const ApplyForm: React.FC = () => {
                   accept=".png,.jpg,.jpeg"
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      const err = validateClientFile(e.target.files[0]);
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) {
+                      const err = validateClientFile(file);
                       if (err) {
                         setFieldErrors((prev) => ({ ...prev, photo: err }));
                       } else {
-                        setPhotoFile(e.target.files[0]);
+                        setPhotoFile(file);
                         setFieldErrors((prev) => {
                           const c = { ...prev };
                           delete c.photo;
                           return c;
                         });
                       }
-                      e.target.value = '';
                     }
                   }}
                 />
@@ -1024,9 +1026,9 @@ export const ApplyForm: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-500">{t('apply.step4.certsDesc')}</p>
 
-                {certificateFiles.length > 0 && (
+                {certificateFiles.filter(Boolean).length > 0 && (
                   <div className="space-y-2">
-                    {certificateFiles.map((cert, idx) => (
+                    {certificateFiles.filter(Boolean).map((cert, idx) => (
                       <div
                         key={idx}
                         className="p-2.5 rounded-xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3"
@@ -1034,10 +1036,10 @@ export const ApplyForm: React.FC = () => {
                         <div className="flex items-center gap-2 truncate">
                           <FileText className="w-4 h-4 text-brand-action shrink-0" />
                           <span className="text-xs font-semibold text-brand-heading truncate">
-                            {cert.name}
+                            {cert?.name || 'Document'}
                           </span>
                           <span className="text-[11px] text-gray-400 shrink-0">
-                            ({formatFileSize(cert.size)})
+                            ({cert ? formatFileSize(cert.size) : '0 B'})
                           </span>
                         </div>
                         <button
@@ -1065,14 +1067,28 @@ export const ApplyForm: React.FC = () => {
                     onDrop={(e) => {
                       e.preventDefault();
                       setDragActiveCert(false);
-                      if (e.dataTransfer.files?.[0]) {
-                        const err = validateClientFile(e.dataTransfer.files[0]);
+                      const droppedFiles = Array.from(e.dataTransfer.files || []);
+                      if (droppedFiles.length === 0) return;
+
+                      const validFiles: File[] = [];
+                      for (const file of droppedFiles) {
+                        const err = validateClientFile(file);
                         if (err) {
                           setFieldErrors((prev) => ({ ...prev, certificates: err }));
-                        } else {
-                          setCertificateFiles((prev) => [...prev, e.dataTransfer.files[0]]);
+                          return;
                         }
+                        validFiles.push(file);
                       }
+
+                      setCertificateFiles((prev) => {
+                        const combined = [...prev, ...validFiles];
+                        return combined.slice(0, 5);
+                      });
+                      setFieldErrors((prev) => {
+                        const c = { ...prev };
+                        delete c.certificates;
+                        return c;
+                      });
                     }}
                     onClick={() => certInputRef.current?.click()}
                     className={`p-4 rounded-xl border-2 border-dashed text-center cursor-pointer transition-colors ${
@@ -1100,17 +1116,32 @@ export const ApplyForm: React.FC = () => {
                   ref={certInputRef}
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      const err = validateClientFile(e.target.files[0]);
+                    const selectedFiles = Array.from(e.target.files || []);
+                    e.target.value = '';
+                    if (selectedFiles.length === 0) return;
+
+                    const validFiles: File[] = [];
+                    for (const file of selectedFiles) {
+                      const err = validateClientFile(file);
                       if (err) {
                         setFieldErrors((prev) => ({ ...prev, certificates: err }));
-                      } else {
-                        setCertificateFiles((prev) => [...prev, e.target.files[0]]);
+                        return;
                       }
-                      e.target.value = '';
+                      validFiles.push(file);
                     }
+
+                    setCertificateFiles((prev) => {
+                      const combined = [...prev, ...validFiles];
+                      return combined.slice(0, 5);
+                    });
+                    setFieldErrors((prev) => {
+                      const c = { ...prev };
+                      delete c.certificates;
+                      return c;
+                    });
                   }}
                 />
               </div>
