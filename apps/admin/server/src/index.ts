@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import candidateRoutes from './routes/candidateRoutes.js';
+import slotRoutes from './routes/slotRoutes.js';
 import { streamDocument } from './controllers/candidateController.js';
 
 dotenv.config();
@@ -26,6 +27,9 @@ async function startServer() {
 
   // Candidate routes (protected)
   app.use('/api/candidates', candidateRoutes);
+
+  // Interview slot routes (protected)
+  app.use('/api/slots', slotRoutes);
 
   // Signed document streaming
   app.get('/api/documents/view/:storageKey', streamDocument);

@@ -55,9 +55,16 @@ function getTemplate(
   lang: string,
   candidateName: string,
   applicationId: string,
-  reasonNote?: string | null
+  reasonNote?: string | null,
+  interviewDetails?: SendStageEmailParams['interviewDetails']
 ): EmailTemplate {
   const normLang = lang === 'hi' || lang === 'ta' ? lang : 'en';
+  const bookingUrl = `http://localhost:3000/book/${applicationId}`;
+  const interviewTimeStr = interviewDetails?.startTime
+    ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(
+        new Date(interviewDetails.startTime)
+      )
+    : '';
 
   if (normLang === 'hi') {
     switch (stage) {
@@ -84,15 +91,30 @@ function getTemplate(
           bodyText: `नमस्ते ${candidateName},\n\nआपकी प्रोफाइल प्रारंभिक समीक्षा में पास हो गई है। हमारी टीम 10 मिनट के टेलीफोनिक साक्षात्कार के लिए संपर्क करेगी।`,
         };
       case Stage.INTERVIEW:
+        if (interviewDetails?.startTime) {
+          return {
+            subject: `TheCarePal: साक्षात्कार की पुष्टि (${applicationId})`,
+            headline: 'आपका साक्षात्कार निर्धारित कर दिया गया है',
+            bodyHtml: `
+              <p>नमस्ते <b>${candidateName}</b>,</p>
+              <p>आपका साक्षात्कार <b>${interviewTimeStr}</b> के लिए निर्धारित कर दिया गया है।</p>
+              <p><b>साक्षात्कारकर्ता:</b> ${interviewDetails.interviewerName || 'Operations Lead'}</p>
+              <p><b>माध्यम:</b> ${interviewDetails.mode || 'VIDEO'}</p>
+              <p>कृपया समय पर उपस्थित रहें।</p>
+            `,
+            bodyText: `नमस्ते ${candidateName},\n\nआपका साक्षात्कार ${interviewTimeStr} को निर्धारित है। माध्यम: ${interviewDetails.mode || 'VIDEO'}, साक्षात्कारकर्ता: ${interviewDetails.interviewerName || 'Operations Lead'}.`,
+          };
+        }
         return {
           subject: `TheCarePal: साक्षात्कार आमंत्रण (${applicationId})`,
           headline: 'साक्षात्कार चरण में आपका स्वागत है',
           bodyHtml: `
             <p>नमस्ते <b>${candidateName}</b>,</p>
             <p>बधाई हो! आप TheCarePal के क्लिनिकल और तकनीकी साक्षात्कार दौर के लिए आमंत्रित हैं।</p>
-            <p>साक्षात्कार स्लॉट का चयन करने और समय की पुष्टि करने के लिए हमारी टीम आपसे संपर्क करेगी या आपको स्लॉट बुकिंग लिंक भेजेगी।</p>
+            <p>कृपया अपनी सुविधानुसार समय स्लॉट चुनने के लिए नीचे दिए गए लिंक पर क्लिक करें:</p>
+            <div style="margin: 20px 0;"><a href="${bookingUrl}" style="background-color: #2563EB; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">साक्षात्कार स्लॉट चुनें</a></div>
           `,
-          bodyText: `नमस्ते ${candidateName},\n\nबधाई हो! आप साक्षात्कार दौर के लिए आमंत्रित हैं। ऑपरेशंस टीम समय और लिंक की पुष्टि करेगी।`,
+          bodyText: `नमस्ते ${candidateName},\n\nबधाई हो! आप साक्षात्कार दौर के लिए आमंत्रित हैं। अपना स्लॉट चुनने के लिए लिंक पर जाएं: ${bookingUrl}`,
         };
       case Stage.VERIFIED:
         return {
@@ -157,15 +179,30 @@ function getTemplate(
           bodyText: `வணக்கம் ${candidateName},\n\nஉங்கள் சுயவிவரம் திரையிடலுக்கு தேர்வாகியுள்ளது. எங்கள் நிபுணர் விரைவில் தொலைபேசியில் தொடர்புகொள்வார்.`,
         };
       case Stage.INTERVIEW:
+        if (interviewDetails?.startTime) {
+          return {
+            subject: `TheCarePal: நேர்காணல் உறுதி செய்யப்பட்டது (${applicationId})`,
+            headline: 'உங்கள் நேர்காணல் நேரம் உறுதி செய்யப்பட்டது',
+            bodyHtml: `
+              <p>வணக்கம் <b>${candidateName}</b>,</p>
+              <p>உங்கள் மருத்துவ நேர்காணல் <b>${interviewTimeStr}</b> அன்று திட்டமிடப்பட்டுள்ளது.</p>
+              <p><b>நேர்காணலாளர்:</b> ${interviewDetails.interviewerName || 'Operations Lead'}</p>
+              <p><b>முறை:</b> ${interviewDetails.mode || 'VIDEO'}</p>
+              <p>நேரத்திற்கு முன்னதாக கலந்து கொள்ளுமாறு கேட்டுக்கொள்கிறோம்.</p>
+            `,
+            bodyText: `வணக்கம் ${candidateName},\n\nஉங்கள் நேர்காணல் ${interviewTimeStr} அன்று உறுதி செய்யப்பட்டுள்ளது. முறை: ${interviewDetails.mode || 'VIDEO'}, நேர்காணலாளர்: ${interviewDetails.interviewerName || 'Operations Lead'}.`,
+          };
+        }
         return {
           subject: `TheCarePal: நேர்காணல் அழைப்பு (${applicationId})`,
           headline: 'மருத்துவ நேர்காணல் சுற்றுக்கு உங்களை வரவேற்கிறோம்',
           bodyHtml: `
             <p>வணக்கம் <b>${candidateName}</b>,</p>
             <p>வாழ்த்துகள்! TheCarePal மருத்துவ மற்றும் தொழில்நுட்ப நேர்காணல் சுற்றுக்கு நீங்கள் அழைக்கப்பட்டுள்ளீர்கள்.</p>
-            <p>நேர்காணல் நேரத்தைத் தேர்வு செய்ய எங்கள் குழு உங்களைத் தொடர்புகொள்வார்கள்.</p>
+            <p>உங்கள் விருப்பப்படி நேர்காணல் நேரத்தைத் தேர்வு செய்ய கீழே உள்ள பொத்தானை கிளிக் செய்யவும்:</p>
+            <div style="margin: 20px 0;"><a href="${bookingUrl}" style="background-color: #2563EB; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">நேர்காணல் நேரத்தைத் தேர்ந்தெடுக்கவும்</a></div>
           `,
-          bodyText: `வணக்கம் ${candidateName},\n\nவாழ்த்துகள்! நீங்கள் நேர்காணல் சுற்றுக்கு அழைக்கப்பட்டுள்ளீர்கள். விவரங்கள் விரைவில் பகிரப்படும்.`,
+          bodyText: `வணக்கம் ${candidateName},\n\nவாழ்த்துகள்! நீங்கள் நேர்காணல் சுற்றுக்கு அழைக்கப்பட்டுள்ளீர்கள். உங்கள் நேரத்தைத் தேர்ந்தெடுக்க லிங்கை திறக்கவும்: ${bookingUrl}`,
         };
       case Stage.VERIFIED:
         return {
@@ -230,15 +267,30 @@ function getTemplate(
         bodyText: `Dear ${candidateName},\n\nYour profile has passed initial review and is now in Screening.\nA coordinator will contact you shortly for a brief phone conversation.`,
       };
     case Stage.INTERVIEW:
+      if (interviewDetails?.startTime) {
+        return {
+          subject: `TheCarePal: Interview Appointment Confirmed (${applicationId})`,
+          headline: 'Your Interview Appointment is Confirmed',
+          bodyHtml: `
+            <p>Dear <b>${candidateName}</b>,</p>
+            <p>Your clinical interview appointment has been confirmed for <b>${interviewTimeStr}</b>.</p>
+            <p><b>Interviewer:</b> ${interviewDetails.interviewerName || 'Operations Lead'}</p>
+            <p><b>Mode:</b> ${interviewDetails.mode || 'VIDEO'}</p>
+            <p>Please make sure you are available 5 minutes prior to the scheduled start time.</p>
+          `,
+          bodyText: `Dear ${candidateName},\n\nYour interview is confirmed for ${interviewTimeStr}.\nInterviewer: ${interviewDetails.interviewerName || 'Operations Lead'}, Mode: ${interviewDetails.mode || 'VIDEO'}.`,
+        };
+      }
       return {
         subject: `TheCarePal: Interview Round Invitation (${applicationId})`,
         headline: 'You Are Invited to Interview',
         bodyHtml: `
           <p>Dear <b>${candidateName}</b>,</p>
-          <p>Congratulations! You have successfully passed our screening stage and are invited to the <b>Clinical Interview Round</b> with our healthcare leads.</p>
-          <p>Our team will assign your interview slot and send confirmation details shortly.</p>
+          <p>Congratulations! You have passed our screening and verification gates and are invited to the <b>Clinical Interview Round</b> with our healthcare leads.</p>
+          <p>Please select your preferred date and time from our available slots using the link below:</p>
+          <div style="margin: 20px 0;"><a href="${bookingUrl}" style="background-color: #2563EB; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Choose Your Interview Slot</a></div>
         `,
-        bodyText: `Dear ${candidateName},\n\nCongratulations! You are invited to the Clinical Interview Round with TheCarePal.\nOur team will confirm your interview slot shortly.`,
+        bodyText: `Dear ${candidateName},\n\nCongratulations! You are invited to the Clinical Interview Round with TheCarePal.\nPlease visit the following link to choose an available interview slot: ${bookingUrl}`,
       };
     case Stage.VERIFIED:
       return {
@@ -350,6 +402,7 @@ export async function sendStageEmail(
     preferredLanguage = 'en',
     applicationId,
     reasonNote,
+    interviewDetails,
   } = params;
 
   const template = getTemplate(
@@ -357,7 +410,8 @@ export async function sendStageEmail(
     preferredLanguage || 'en',
     candidateName,
     applicationId,
-    reasonNote
+    reasonNote,
+    interviewDetails
   );
 
   const fromAddress = process.env.EMAIL_FROM || '"TheCarePal Operations" <careers@thecarepal.test>';

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ToastProvider, Card, Button, Badge } from '@carepal/ui';
 import { PublicLayout } from './components/PublicLayout.js';
 import { ApplyForm } from './features/apply/ApplyForm.js';
+import { BookingPage } from './features/booking/BookingPage.js';
 import { HeartHandshake, ShieldCheck, Clock, Users, ArrowRight } from 'lucide-react';
 
 function HomePage() {
@@ -109,6 +110,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/careers/apply" element={<ApplyForm />} />
+            <Route path="/book/:token" element={<BookingPage />} />
+            <Route path="/booking/:token" element={<BookingPage />} />
             <Route path="*" element={<HomePage />} />
           </Routes>
         </PublicLayout>

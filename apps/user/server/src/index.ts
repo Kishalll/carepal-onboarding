@@ -12,6 +12,10 @@ import {
   deleteCandidateDocument,
   viewPrivateDocument,
 } from './controllers/documentController.js';
+import {
+  getBookingDetails,
+  bookSlot,
+} from './controllers/bookingController.js';
 
 dotenv.config();
 
@@ -84,6 +88,10 @@ async function startServer() {
 
   // Private document viewing (HMAC-signed short-lived URLs)
   app.get('/api/documents/view/*', viewPrivateDocument);
+
+  // Interview booking endpoints (candidate self-service)
+  app.get('/api/booking/:token', getBookingDetails);
+  app.post('/api/booking/:token', bookSlot);
 
   // Multer error handler for clean JSON responses
   app.use(
