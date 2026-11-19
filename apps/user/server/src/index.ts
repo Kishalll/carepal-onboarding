@@ -33,7 +33,7 @@ async function startServer() {
   // Rate limiter for application submissions
   const applicationLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // limit each IP to 20 requests per window
+    max: process.env.NODE_ENV === 'production' ? 20 : 200, // limit each IP per window
     standardHeaders: true,
     legacyHeaders: false,
     message: {
