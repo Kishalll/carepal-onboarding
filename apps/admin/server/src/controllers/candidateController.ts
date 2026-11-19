@@ -7,6 +7,7 @@ import {
   Stage,
   Qualification,
   AvailabilityType,
+  VerificationStatus,
 } from '@carepal/shared';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -650,4 +651,321 @@ export async function getCandidatesBoard(
     res.status(500).json({ error: 'Failed to retrieve candidate board' });
   }
 }
+
+/**
+ * PATCH /api/candidates/:id/checklist/:itemId
+ * Update status and remark of a checklist item.
+ */
+export async function updateChecklistItem(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id, itemId } = req.params;
+    const { status, remark } = req.body;
+
+    if (!id || !itemId) {
+      res.status(400).json({ error: 'Candidate ID and checklist item ID are required' });
+      return;
+    }
+
+    const validStatuses = Object.values(VerificationStatus);
+    if (!status || !validStatuses.includes(status)) {
+      res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+      });
+      return;
+    }
+
+    if (
+      (status === VerificationStatus.REJECTED || status === VerificationStatus.REUPLOAD_REQUESTED) &&
+      (!remark || !remark.trim())
+    ) {
+      res.status(400).json({
+        error: 'A remark is required when rejecting or requesting re-upload for a checklist item',
+      });
+      return;
+    }
+
+    const candidate = await prisma.candidate.findFirst({
+      where: { OR: [{ id }, { applicationId: id }] },
+      select: { id: true, fullName: true },
+    });
+
+    if (!candidate) {
+      res.status(404).json({ error: 'Candidate not found' });
+      return;
+    }
+
+    const existingItem = await prisma.checklistItem.findFirst({
+      where: { id: itemId, candidateId: candidate.id },
+    });
+
+    if (!existingItem) {
+      res.status(404).json({ error: 'Checklist item not found for this candidate' });
+      return;
+    }
+
+    const adminName = req.user?.name || 'Operations Admin';
+    const adminId = req.user?.id;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedItem = await tx.checklistItem.update({
+        where: { id: existingItem.id },
+        data: {
+          status,
+          remark: remark ? remark.trim() : null,
+          updatedBy: adminName,
+        },
+      });
+
+      if (
+        (status === VerificationStatus.REJECTED || status === VerificationStatus.REUPLOAD_REQUESTED) &&
+        adminId
+      ) {
+        await tx.note.create({
+          data: {
+            candidateId: candidate.id,
+            authorId: adminId,
+            authorName: adminName,
+            content: `[Checklist: ${existingItem.label}] Status updated to ${status}. Remark: ${remark.trim()}`,
+          },
+        });
+      }
+
+      const allItems = await tx.checklistItem.findMany({
+        where: { candidateId: candidate.id },
+      });
+
+      const totalItems = allItems.length;
+      const verifiedItems = allItems.filter((i) => i.status === VerificationStatus.VERIFIED).length;
+      const requiredItems = allItems.filter((i) => i.required);
+      const allRequiredVerified = requiredItems.every((i) => i.status === VerificationStatus.VERIFIED);
+
+      return {
+        item: updatedItem,
+        stats: {
+          totalItems,
+          verifiedItems,
+          allRequiredVerified,
+        },
+      };
+    });
+
+    res.json({
+      message: `Checklist item marked as ${status}`,
+      checklistItem: result.item,
+      stats: result.stats,
+    });
+  } catch (err) {
+    console.error('Error updating checklist item:', err);
+    res.status(500).json({ error: 'Failed to update checklist item' });
+  }
+}
+
+/**
+ * PATCH /api/candidates/:id/documents/:docId/status
+ * Update document verification status and optional remark.
+ */
+export async function updateDocumentStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id, docId } = req.params;
+    const { status, remark } = req.body;
+
+    if (!id || !docId) {
+      res.status(400).json({ error: 'Candidate ID and document ID are required' });
+      return;
+    }
+
+    const validStatuses = Object.values(VerificationStatus);
+    if (!status || !validStatuses.includes(status)) {
+      res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+      });
+      return;
+    }
+
+    if (
+      (status === VerificationStatus.REJECTED || status === VerificationStatus.REUPLOAD_REQUESTED) &&
+      (!remark || !remark.trim())
+    ) {
+      res.status(400).json({
+        error: 'A remark is required when rejecting or requesting re-upload for a document',
+      });
+      return;
+    }
+
+    const candidate = await prisma.candidate.findFirst({
+      where: { OR: [{ id }, { applicationId: id }] },
+      select: { id: true, fullName: true },
+    });
+
+    if (!candidate) {
+      res.status(404).json({ error: 'Candidate not found' });
+      return;
+    }
+
+    const existingDoc = await prisma.document.findFirst({
+      where: { id: docId, candidateId: candidate.id },
+    });
+
+    if (!existingDoc) {
+      res.status(404).json({ error: 'Document not found for this candidate' });
+      return;
+    }
+
+    const adminName = req.user?.name || 'Operations Admin';
+    const adminId = req.user?.id;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedDoc = await tx.document.update({
+        where: { id: existingDoc.id },
+        data: {
+          status,
+        },
+      });
+
+      if (remark && remark.trim() && adminId) {
+        await tx.note.create({
+          data: {
+            candidateId: candidate.id,
+            authorId: adminId,
+            authorName: adminName,
+            content: `[Document: ${existingDoc.category} - ${existingDoc.originalName}] Status set to ${status}. Remark: ${remark.trim()}`,
+          },
+        });
+      }
+
+      const allDocs = await tx.document.findMany({
+        where: { candidateId: candidate.id },
+      });
+
+      const totalDocs = allDocs.length;
+      const verifiedDocs = allDocs.filter((d) => d.status === VerificationStatus.VERIFIED).length;
+
+      return {
+        document: updatedDoc,
+        stats: {
+          totalDocs,
+          verifiedDocs,
+        },
+      };
+    });
+
+    res.json({
+      message: `Document marked as ${status}`,
+      document: result.document,
+      stats: result.stats,
+    });
+  } catch (err) {
+    console.error('Error updating document status:', err);
+    res.status(500).json({ error: 'Failed to update document status' });
+  }
+}
+
+/**
+ * GET /api/candidates/verification/queue
+ * Returns candidates in SCREENING and INTERVIEW stages with checklist and document breakdown.
+ */
+export async function getVerificationQueue(_req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const candidates = await prisma.candidate.findMany({
+      where: {
+        stage: { in: [Stage.SCREENING, Stage.INTERVIEW, Stage.APPLIED] },
+      },
+      orderBy: [
+        { stage: 'asc' },
+        { createdAt: 'desc' },
+      ],
+      include: {
+        checklistItems: {
+          orderBy: { updatedAt: 'asc' },
+        },
+        documents: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    let totalPendingChecklistItems = 0;
+    let totalReadyToAdvance = 0;
+    let totalReuploadRequested = 0;
+
+    const queue = candidates.map((c) => {
+      const totalDocs = c.documents.length;
+      const verifiedDocs = c.documents.filter((d) => d.status === VerificationStatus.VERIFIED).length;
+      const totalChecklist = c.checklistItems.length;
+      const verifiedChecklist = c.checklistItems.filter(
+        (chk) => chk.status === VerificationStatus.VERIFIED
+      ).length;
+      const requiredItems = c.checklistItems.filter((chk) => chk.required);
+      const verifiedRequired = requiredItems.filter(
+        (chk) => chk.status === VerificationStatus.VERIFIED
+      ).length;
+      const allRequiredVerified = requiredItems.length > 0 && verifiedRequired === requiredItems.length;
+
+      const hasReuploadRequested =
+        c.checklistItems.some((chk) => chk.status === VerificationStatus.REUPLOAD_REQUESTED) ||
+        c.documents.some((doc) => doc.status === VerificationStatus.REUPLOAD_REQUESTED);
+
+      const pendingItemsCount = c.checklistItems.filter(
+        (chk) => chk.status === VerificationStatus.PENDING || chk.status === VerificationStatus.REJECTED
+      ).length;
+
+      totalPendingChecklistItems += pendingItemsCount;
+      if (hasReuploadRequested) totalReuploadRequested++;
+      if (allRequiredVerified) totalReadyToAdvance++;
+
+      const daysInStage = Math.max(
+        0,
+        Math.floor((Date.now() - new Date(c.stageUpdatedAt).getTime()) / (1000 * 60 * 60 * 24))
+      );
+
+      return {
+        id: c.id,
+        applicationId: c.applicationId,
+        fullName: c.fullName,
+        phone: c.phone,
+        email: c.email,
+        city: c.city,
+        qualification: c.qualification,
+        experienceYears: c.experienceYears,
+        skills: c.skills,
+        stage: c.stage,
+        stageUpdatedAt: c.stageUpdatedAt,
+        daysInStage,
+        stats: {
+          totalDocs,
+          verifiedDocs,
+          totalChecklist,
+          verifiedChecklist,
+          requiredCount: requiredItems.length,
+          verifiedRequiredCount: verifiedRequired,
+          allRequiredVerified,
+          hasReuploadRequested,
+        },
+        checklistItems: c.checklistItems,
+        documents: c.documents.map((d) => ({
+          id: d.id,
+          category: d.category,
+          originalName: d.originalName,
+          status: d.status,
+          mimeType: d.mimeType,
+          sizeBytes: d.sizeBytes,
+        })),
+      };
+    });
+
+    res.json({
+      queue,
+      summary: {
+        totalInQueue: candidates.length,
+        totalPendingChecklistItems,
+        totalReadyToAdvance,
+        totalReuploadRequested,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching verification queue:', err);
+    res.status(500).json({ error: 'Failed to retrieve verification queue' });
+  }
+}
+
 

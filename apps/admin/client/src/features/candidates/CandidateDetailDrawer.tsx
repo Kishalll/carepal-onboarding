@@ -17,6 +17,12 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  Check,
+  XCircle,
+  ShieldCheck,
+  AlertCircle,
+  RefreshCw,
+  Undo2,
 } from 'lucide-react';
 import { Badge, Button, Card } from '@carepal/ui';
 
@@ -98,17 +104,28 @@ export interface CandidateDetail {
 
 interface CandidateDetailDrawerProps {
   candidateId: string | null;
+  initialTab?: 'profile' | 'documents' | 'checklist' | 'timeline';
   onClose: () => void;
+  onCandidateUpdated?: () => void;
+}
+
+interface ActionModalState {
+  type: 'checklist' | 'document';
+  targetId: string;
+  targetTitle: string;
+  action: 'REJECTED' | 'REUPLOAD_REQUESTED';
 }
 
 export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
   candidateId,
+  initialTab = 'profile',
   onClose,
+  onCandidateUpdated,
 }) => {
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'checklist' | 'timeline'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'checklist' | 'timeline'>(initialTab);
 
   // Preview modal state
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
@@ -117,6 +134,18 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
   // Add note form state
   const [newNoteContent, setNewNoteContent] = useState<string>('');
   const [isSubmittingNote, setIsSubmittingNote] = useState<boolean>(false);
+
+  // Verification action modal state
+  const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
+  const [actionRemark, setActionRemark] = useState<string>('');
+  const [isSubmittingAction, setIsSubmittingAction] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [candidateId, initialTab]);
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +171,69 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
       console.error('Failed to post note:', err);
     } finally {
       setIsSubmittingNote(false);
+    }
+  };
+
+  const handleUpdateChecklistItem = async (
+    itemId: string,
+    status: 'VERIFIED' | 'REJECTED' | 'REUPLOAD_REQUESTED' | 'PENDING',
+    remark?: string
+  ) => {
+    if (!candidate) return;
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}/checklist/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status, remark }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update checklist item');
+      }
+      const data = await res.json();
+      setCandidate({
+        ...candidate,
+        checklistItems: candidate.checklistItems.map((item) =>
+          item.id === itemId ? { ...item, ...data.checklistItem } : item
+        ),
+      });
+      onCandidateUpdated?.();
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Error updating checklist item');
+    }
+  };
+
+  const handleUpdateDocumentStatus = async (
+    docId: string,
+    status: 'VERIFIED' | 'REJECTED' | 'REUPLOAD_REQUESTED' | 'PENDING',
+    remark?: string
+  ) => {
+    if (!candidate) return;
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}/documents/${docId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status, remark }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update document status');
+      }
+      const data = await res.json();
+      setCandidate({
+        ...candidate,
+        documents: candidate.documents.map((d) =>
+          d.id === docId ? { ...d, ...data.document } : d
+        ),
+      });
+      if (previewDoc && previewDoc.id === docId) {
+        setPreviewDoc({ ...previewDoc, status: data.document.status });
+      }
+      onCandidateUpdated?.();
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Error updating document status');
     }
   };
 
@@ -524,17 +616,19 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <span
                                   className={`text-[11px] font-semibold px-2 py-0.5 rounded-pill ${
                                     doc.status === 'VERIFIED'
                                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                       : doc.status === 'REJECTED'
                                       ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                      : doc.status === 'REUPLOAD_REQUESTED'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                       : 'bg-amber-50 text-amber-700 border border-amber-200'
                                   }`}
                                 >
-                                  {doc.status}
+                                  {doc.status.replace('_', ' ')}
                                 </span>
                                 <Button
                                   variant="outline"
@@ -548,6 +642,33 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                                   <Eye className="w-3.5 h-3.5" />
                                   <span>View</span>
                                 </Button>
+                                {doc.status !== 'VERIFIED' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateDocumentStatus(doc.id, 'VERIFIED')}
+                                    className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
+                                    title="Verify Document"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {doc.status !== 'REJECTED' && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActionModal({
+                                        type: 'document',
+                                        targetId: doc.id,
+                                        targetTitle: `${categoryTitle} (${doc.originalName})`,
+                                        action: 'REJECTED',
+                                      })
+                                    }
+                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
+                                    title="Reject Document"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                                 <a
                                   href={doc.viewUrl}
                                   target="_blank"
@@ -569,64 +690,175 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                 {/* Verification Checklist Tab Content */}
                 {activeTab === 'checklist' && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Candidate Verification Items
-                      </h3>
-                      <span className="text-xs font-semibold text-slate-700">
-                        {candidate.checklistItems.filter((i) => i.status === 'VERIFIED').length} of{' '}
-                        {candidate.checklistItems.length} verified
-                      </span>
+                    {/* Progress & Gate Callout Card */}
+                    <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Verification Progress
+                        </span>
+                        <span className="text-xs font-bold text-slate-800">
+                          {candidate.checklistItems.filter((i) => i.status === 'VERIFIED').length} of{' '}
+                          {candidate.checklistItems.length} verified
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 transition-all duration-300 rounded-full"
+                          style={{
+                            width: `${
+                              candidate.checklistItems.length > 0
+                                ? Math.round(
+                                    (candidate.checklistItems.filter((i) => i.status === 'VERIFIED').length /
+                                      candidate.checklistItems.length) *
+                                      100
+                                  )
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+
+                      {/* Stage Gate Status Indicator */}
+                      {candidate.checklistItems.filter((i) => i.required).every((i) => i.status === 'VERIFIED') ? (
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>All required checks verified. Candidate satisfies the gate to advance to Verified stage.</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Stage Gate: Candidate cannot advance to Verified until all required (*) items are verified.</span>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-2.5">
+                    {/* Checklist Items */}
+                    <div className="space-y-3">
                       {candidate.checklistItems.map((item) => {
                         const isVerified = item.status === 'VERIFIED';
                         const isRejected = item.status === 'REJECTED';
+                        const isReupload = item.status === 'REUPLOAD_REQUESTED';
 
                         return (
                           <div
                             key={item.id}
-                            className="p-3.5 rounded-xl bg-white border border-gray-200 flex items-start justify-between gap-3 shadow-2xs"
+                            className={`p-4 rounded-xl bg-white border transition-all ${
+                              isVerified
+                                ? 'border-emerald-200 bg-emerald-50/20'
+                                : isRejected
+                                ? 'border-rose-200 bg-rose-50/20'
+                                : isReupload
+                                ? 'border-purple-200 bg-purple-50/20'
+                                : 'border-gray-200 hover:border-gray-300'
+                            } shadow-2xs`}
                           >
-                            <div className="flex items-start gap-2.5">
-                              <div className="mt-0.5">
-                                {isVerified ? (
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                ) : isRejected ? (
-                                  <AlertTriangle className="w-4 h-4 text-rose-500" />
-                                ) : (
-                                  <Clock className="w-4 h-4 text-amber-500" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-slate-800 flex items-center gap-1.5">
-                                  <span>{item.label}</span>
-                                  {item.required && (
-                                    <span className="text-[10px] text-rose-500 font-bold">*</span>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-2.5">
+                                <div className="mt-0.5">
+                                  {isVerified ? (
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  ) : isRejected ? (
+                                    <AlertTriangle className="w-4 h-4 text-rose-500" />
+                                  ) : isReupload ? (
+                                    <RefreshCw className="w-4 h-4 text-purple-600" />
+                                  ) : (
+                                    <Clock className="w-4 h-4 text-amber-500" />
                                   )}
                                 </div>
-                                <div className="text-xs text-gray-400 font-mono mt-0.5">
-                                  Code: {item.code}
-                                </div>
-                                {item.remark && (
-                                  <div className="mt-1 text-xs text-slate-600 italic bg-slate-50 p-1.5 rounded">
-                                    Remark: {item.remark}
+                                <div>
+                                  <div className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                                    <span>{item.label}</span>
+                                    {item.required && (
+                                      <span className="text-xs text-rose-500 font-bold" title="Required for Verified stage">
+                                        *
+                                      </span>
+                                    )}
                                   </div>
-                                )}
+                                  <div className="text-xs text-gray-400 font-mono mt-0.5">
+                                    Code: {item.code} {item.updatedBy && `• Last updated by ${item.updatedBy}`}
+                                  </div>
+                                  {item.remark && (
+                                    <div className="mt-2 text-xs text-slate-700 bg-slate-50 border border-slate-200 p-2 rounded-lg font-medium">
+                                      Remark: {item.remark}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-pill shrink-0 ${
+                                  isVerified
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : isRejected
+                                    ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                                    : isReupload
+                                    ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
+                                }`}
+                              >
+                                {item.status.replace('_', ' ')}
+                              </span>
                             </div>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-pill ${
-                                isVerified
-                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                  : isRejected
-                                  ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                                  : 'bg-amber-50 text-amber-800 border border-amber-200'
-                              }`}
-                            >
-                              {item.status}
-                            </span>
+
+                            {/* Action Buttons */}
+                            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                              {!isVerified && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateChecklistItem(item.id, 'VERIFIED')}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-2xs transition-colors"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Verify</span>
+                                </button>
+                              )}
+                              {!isRejected && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActionModal({
+                                      type: 'checklist',
+                                      targetId: item.id,
+                                      targetTitle: item.label,
+                                      action: 'REJECTED',
+                                    })
+                                  }
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 transition-colors"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>Reject</span>
+                                </button>
+                              )}
+                              {!isReupload && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActionModal({
+                                      type: 'checklist',
+                                      targetId: item.id,
+                                      targetTitle: item.label,
+                                      action: 'REUPLOAD_REQUESTED',
+                                    })
+                                  }
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 transition-colors"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                  <span>Request Re-upload</span>
+                                </button>
+                              )}
+                              {(isVerified || isRejected || isReupload) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateChecklistItem(item.id, 'PENDING')}
+                                  className="px-2 py-1 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center gap-1 transition-colors"
+                                  title="Reset to Pending"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5" />
+                                  <span>Reset</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -813,6 +1045,175 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
                   </a>
                 </div>
               )}
+            </div>
+
+            {/* Modal Footer with Verification Actions */}
+            <div className="px-6 py-3.5 bg-white border-t border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-medium">Document Status:</span>
+                <span
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-pill ${
+                    previewDoc.status === 'VERIFIED'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : previewDoc.status === 'REJECTED'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                      : previewDoc.status === 'REUPLOAD_REQUESTED'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}
+                >
+                  {previewDoc.status.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {previewDoc.status !== 'VERIFIED' && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleUpdateDocumentStatus(previewDoc.id, 'VERIFIED')}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 h-8 px-3 shadow-2xs"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Approve Document</span>
+                  </Button>
+                )}
+                {previewDoc.status !== 'REJECTED' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setActionModal({
+                        type: 'document',
+                        targetId: previewDoc.id,
+                        targetTitle: previewDoc.originalName,
+                        action: 'REJECTED',
+                      })
+                    }
+                    className="text-rose-700 border-rose-200 hover:bg-rose-50 text-xs gap-1.5 h-8 px-3"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Reject</span>
+                  </Button>
+                )}
+                {previewDoc.status !== 'REUPLOAD_REQUESTED' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setActionModal({
+                        type: 'document',
+                        targetId: previewDoc.id,
+                        targetTitle: previewDoc.originalName,
+                        action: 'REUPLOAD_REQUESTED',
+                      })
+                    }
+                    className="text-purple-700 border-purple-200 hover:bg-purple-50 text-xs gap-1.5 h-8 px-3"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Request Re-upload</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Action Dialog (Mandatory Remark) */}
+      {actionModal && (
+        <div className="fixed inset-0 z-70 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                {actionModal.action === 'REJECTED' ? (
+                  <XCircle className="w-5 h-5 text-rose-500" />
+                ) : (
+                  <RefreshCw className="w-5 h-5 text-purple-600" />
+                )}
+                <span>
+                  {actionModal.action === 'REJECTED' ? 'Reject' : 'Request Re-upload'}:{' '}
+                  {actionModal.type === 'checklist' ? 'Checklist Item' : 'Document'}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setActionModal(null);
+                  setActionRemark('');
+                  setActionError(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+              Target: <span className="font-semibold text-slate-800">{actionModal.targetTitle}</span>
+              <br />
+              Please provide a clear remark explaining the issue. This will be recorded on the candidate timeline and visible to the operations team.
+            </p>
+
+            {actionError && (
+              <div className="mb-3 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {actionError}
+              </div>
+            )}
+
+            <textarea
+              rows={3}
+              value={actionRemark}
+              onChange={(e) => {
+                setActionRemark(e.target.value);
+                if (actionError) setActionError(null);
+              }}
+              placeholder="Enter mandatory remark (e.g. Document unreadable, name mismatch, etc.)..."
+              className="w-full p-3 text-xs bg-slate-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-action/20 focus:border-brand-action resize-none"
+            />
+
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setActionModal(null);
+                  setActionRemark('');
+                  setActionError(null);
+                }}
+                className="text-xs h-8"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={isSubmittingAction || !actionRemark.trim()}
+                onClick={async () => {
+                  if (!actionRemark.trim()) {
+                    setActionError('A remark is required.');
+                    return;
+                  }
+                  setIsSubmittingAction(true);
+                  if (actionModal.type === 'checklist') {
+                    await handleUpdateChecklistItem(actionModal.targetId, actionModal.action, actionRemark.trim());
+                  } else {
+                    await handleUpdateDocumentStatus(actionModal.targetId, actionModal.action, actionRemark.trim());
+                  }
+                  setIsSubmittingAction(false);
+                  setActionModal(null);
+                  setActionRemark('');
+                  setActionError(null);
+                }}
+                className={`text-xs h-8 ${
+                  actionModal.action === 'REJECTED'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                }`}
+              >
+                {isSubmittingAction
+                  ? 'Saving...'
+                  : `Confirm ${actionModal.action === 'REJECTED' ? 'Rejection' : 'Request'}`}
+              </Button>
             </div>
           </div>
         </div>

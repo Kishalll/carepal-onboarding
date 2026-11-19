@@ -75,7 +75,12 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         {/* Navigation list */}
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/checklist' &&
+                (location.pathname === '/verification' ||
+                  location.pathname.startsWith('/checklist') ||
+                  location.pathname.startsWith('/verification')));
             return (
               <Link
                 key={item.path}
@@ -164,7 +169,12 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         {/* Mobile bottom navigation */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-2 py-2 flex items-center justify-around shadow-lg">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/checklist' &&
+                (location.pathname === '/verification' ||
+                  location.pathname.startsWith('/checklist') ||
+                  location.pathname.startsWith('/verification')));
             return (
               <Link
                 key={item.path}

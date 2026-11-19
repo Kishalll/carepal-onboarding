@@ -123,58 +123,27 @@ const CANDIDATE_PROFILES = [
   { name: 'Meera Krishnan', qual: Qualification.TRAINED_CAREGIVER, city: 'Hyderabad', lang: 'en', exp: 2, council: null },
   { name: 'Vikram Singh', qual: Qualification.B_SC_NURSING, city: 'Delhi NCR', lang: 'hi', exp: 8, council: 'DNC-2016-773920' },
   { name: 'Sunita Rao', qual: Qualification.ANM, city: 'Bengaluru', lang: 'en', exp: 4, council: 'KNC-2020-948271' },
-  { name: 'Arjun Reddy', qual: Qualification.TRAINED_CAREGIVER, city: 'Hyderabad', lang: 'en', exp: 3, council: null },
   { name: 'Pooja Hegde', qual: Qualification.GNM, city: 'Bengaluru', lang: 'en', exp: 5, council: 'KNC-2019-619284' },
   { name: 'Suresh Menon', qual: Qualification.B_SC_NURSING, city: 'Chennai', lang: 'ta', exp: 9, council: 'TNC-2015-883921' },
   { name: 'Lakshmi Iyer', qual: Qualification.TRAINED_CAREGIVER, city: 'Coimbatore', lang: 'ta', exp: 4, council: null },
   { name: 'Rohan Joshi', qual: Qualification.GNM, city: 'Pune', lang: 'hi', exp: 3, council: 'MNC-2021-492019' },
-  { name: 'Divya Pillai', qual: Qualification.ANM, city: 'Mumbai', lang: 'en', exp: 6, council: 'MNC-2018-774920' },
   { name: 'Manoj Gupta', qual: Qualification.TRAINED_CAREGIVER, city: 'Kolkata', lang: 'hi', exp: 2, council: null },
-  { name: 'Kavita Verma', qual: Qualification.B_SC_NURSING, city: 'Delhi NCR', lang: 'hi', exp: 5, council: 'DNC-2019-338291' },
-  { name: 'Ramesh Babu', qual: Qualification.ANM, city: 'Hyderabad', lang: 'en', exp: 4, council: 'TNC-2020-554921' },
-  { name: 'Shalini Das', qual: Qualification.GNM, city: 'Kolkata', lang: 'en', exp: 6, council: 'WBC-2018-992013' },
-  { name: 'Amitabh Mukherjee', qual: Qualification.TRAINED_CAREGIVER, city: 'Kolkata', lang: 'en', exp: 3, council: null },
-  { name: 'Sneha Kulkarni', qual: Qualification.B_SC_NURSING, city: 'Pune', lang: 'hi', exp: 7, council: 'MNC-2017-662910' },
-  { name: 'Ganesh Murthy', qual: Qualification.GNM, city: 'Bengaluru', lang: 'en', exp: 4, council: 'KNC-2020-112948' },
-  { name: 'Swati Bhatt', qual: Qualification.ANM, city: 'Mumbai', lang: 'hi', exp: 5, council: 'MNC-2019-883920' },
-  { name: 'Harish Natarajan', qual: Qualification.TRAINED_CAREGIVER, city: 'Chennai', lang: 'ta', exp: 2, council: null },
-  { name: 'Bhavna Chawla', qual: Qualification.B_SC_NURSING, city: 'Delhi NCR', lang: 'hi', exp: 6, council: 'DNC-2018-449201' },
-  { name: 'Naveen Prasad', qual: Qualification.GNM, city: 'Hyderabad', lang: 'en', exp: 5, council: 'TNC-2019-773921' },
-  { name: 'Geeta Sundaram', qual: Qualification.TRAINED_CAREGIVER, city: 'Coimbatore', lang: 'ta', exp: 4, council: null },
-  { name: 'Pradeep Sen', qual: Qualification.ANM, city: 'Kolkata', lang: 'hi', exp: 3, council: 'WBC-2021-662910' },
-  { name: 'Anita Kaul', qual: Qualification.B_SC_NURSING, city: 'Delhi NCR', lang: 'hi', exp: 8, council: 'DNC-2016-118293' },
-  { name: 'Vinod Nayak', qual: Qualification.GNM, city: 'Pune', lang: 'en', exp: 4, council: 'MNC-2020-552910' },
-  { name: 'Archana Shetty', qual: Qualification.TRAINED_CAREGIVER, city: 'Bengaluru', lang: 'en', exp: 3, council: null },
-  { name: 'Ashok Subramanian', qual: Qualification.B_SC_NURSING, city: 'Chennai', lang: 'ta', exp: 10, council: 'TNC-2014-992019' },
-  { name: 'Kiran Mazumdar', qual: Qualification.ANM, city: 'Kolkata', lang: 'en', exp: 5, council: 'WBC-2019-338291' },
-  { name: 'Vijay Raghavan', qual: Qualification.GNM, city: 'Coimbatore', lang: 'ta', exp: 6, council: 'TNC-2018-449201' },
-  { name: 'Rekha Nambiar', qual: Qualification.TRAINED_CAREGIVER, city: 'Mumbai', lang: 'en', exp: 4, council: null },
-  { name: 'Siddharth Roy', qual: Qualification.B_SC_NURSING, city: 'Delhi NCR', lang: 'hi', exp: 5, council: 'DNC-2019-883921' },
-  { name: 'Preeti Agarwal', qual: Qualification.ANM, city: 'Pune', lang: 'hi', exp: 3, council: 'MNC-2021-992013' },
-  { name: 'Santosh Kulkarni', qual: Qualification.TRAINED_CAREGIVER, city: 'Bengaluru', lang: 'en', exp: 2, council: null },
-  { name: 'Nandini Swaminathan', qual: Qualification.GNM, city: 'Chennai', lang: 'ta', exp: 7, council: 'TNC-2017-338291' },
-  { name: 'Alok Chandra', qual: Qualification.TRAINED_CAREGIVER, city: 'Delhi NCR', lang: 'hi', exp: 3, council: null },
 ];
 
-// Target stages distribution across 40 candidates
+// Target stages distribution across 14 primary candidates
 const STAGE_DISTRIBUTION: Stage[] = [
-  // 8 Applied
-  Stage.APPLIED, Stage.APPLIED, Stage.APPLIED, Stage.APPLIED,
-  Stage.APPLIED, Stage.APPLIED, Stage.APPLIED, Stage.APPLIED,
-  // 8 Screening
-  Stage.SCREENING, Stage.SCREENING, Stage.SCREENING, Stage.SCREENING,
-  Stage.SCREENING, Stage.SCREENING, Stage.SCREENING, Stage.SCREENING,
-  // 8 Interview
-  Stage.INTERVIEW, Stage.INTERVIEW, Stage.INTERVIEW, Stage.INTERVIEW,
-  Stage.INTERVIEW, Stage.INTERVIEW, Stage.INTERVIEW, Stage.INTERVIEW,
-  // 6 Verified
-  Stage.VERIFIED, Stage.VERIFIED, Stage.VERIFIED,
-  Stage.VERIFIED, Stage.VERIFIED, Stage.VERIFIED,
-  // 6 Onboarded
-  Stage.ONBOARDED, Stage.ONBOARDED, Stage.ONBOARDED,
-  Stage.ONBOARDED, Stage.ONBOARDED, Stage.ONBOARDED,
-  // 4 Rejected
-  Stage.REJECTED, Stage.REJECTED, Stage.REJECTED, Stage.REJECTED,
+  // 3 Applied
+  Stage.APPLIED, Stage.APPLIED, Stage.APPLIED,
+  // 3 Screening
+  Stage.SCREENING, Stage.SCREENING, Stage.SCREENING,
+  // 3 Interview
+  Stage.INTERVIEW, Stage.INTERVIEW, Stage.INTERVIEW,
+  // 2 Verified
+  Stage.VERIFIED, Stage.VERIFIED,
+  // 2 Onboarded
+  Stage.ONBOARDED, Stage.ONBOARDED,
+  // 1 Rejected
+  Stage.REJECTED,
 ];
 
 async function main() {
@@ -204,7 +173,17 @@ async function main() {
   });
   console.log(`Admin user seeded: ${admin.email}`);
 
-  // 2. Seed 40 Primary Candidates
+  // Clean up existing candidate records for fresh seeding
+  console.log('Cleaning up existing candidate data...');
+  await prisma.interviewSlot.deleteMany({});
+  await prisma.emailLog.deleteMany({});
+  await prisma.note.deleteMany({});
+  await prisma.stageHistory.deleteMany({});
+  await prisma.checklistItem.deleteMany({});
+  await prisma.document.deleteMany({});
+  await prisma.candidate.deleteMany({});
+
+  // 2. Seed Primary Candidates
   for (let i = 0; i < CANDIDATE_PROFILES.length; i++) {
     const profile = CANDIDATE_PROFILES[i];
     const indexStr = String(i + 1).padStart(6, '0');
@@ -458,10 +437,10 @@ async function main() {
     }
   }
 
-  // 3. Seed deliberate duplicates for testing duplicate detection
-  // Duplicate 1: Matching email with candidate 2 (Priya Sharma), but distinct phone
-  const dup1Phone = '+919800000041';
-  await prisma.candidate.upsert({
+  // 3. Seed 1 deliberate duplicate for testing duplicate detection
+  // Matching email with candidate 2 (Priya Sharma), but distinct phone
+  const dup1Phone = '+919800000015';
+  const dupCandidate = await prisma.candidate.upsert({
     where: { phone: dup1Phone },
     update: {
       fullName: 'Priya Sharma',
@@ -479,7 +458,7 @@ async function main() {
       consentGiven: true,
     },
     create: {
-      applicationId: 'CP-2026-000041',
+      applicationId: 'CP-2026-000015',
       fullName: 'Priya Sharma',
       phone: dup1Phone,
       email: 'priya.sharma2@thecarepal.test',
@@ -499,42 +478,36 @@ async function main() {
     },
   });
 
-  // Duplicate 2: Matching email with candidate 3 (Rajesh Kumar), but distinct phone
-  const dup2Phone = '+919800000042';
-  await prisma.candidate.upsert({
-    where: { phone: dup2Phone },
-    update: {
-      fullName: 'Rajesh Kumar',
-      email: 'rajesh.kumar3@thecarepal.test',
-      city: 'Bengaluru',
-      preferredLanguage: 'en',
-      qualification: Qualification.TRAINED_CAREGIVER,
-      experienceYears: 3,
-      skills: ['Live-in Care', 'Elderly Care'],
-      languages: ['English', 'Hindi'],
-      preferredCities: ['Bengaluru'],
-      availabilityType: AvailabilityType.LIVE_IN,
-      earliestStartDate: new Date(2026, 11, 20),
-      stage: Stage.APPLIED,
-      consentGiven: true,
-    },
-    create: {
-      applicationId: 'CP-2026-000042',
-      fullName: 'Rajesh Kumar',
-      phone: dup2Phone,
-      email: 'rajesh.kumar3@thecarepal.test',
-      dateOfBirth: new Date(1991, 7, 18),
-      city: 'Bengaluru',
-      preferredLanguage: 'en',
-      qualification: Qualification.TRAINED_CAREGIVER,
-      experienceYears: 3,
-      skills: ['Live-in Care', 'Elderly Care'],
-      languages: ['English', 'Hindi'],
-      preferredCities: ['Bengaluru'],
-      availabilityType: AvailabilityType.LIVE_IN,
-      earliestStartDate: new Date(2026, 11, 20),
-      stage: Stage.APPLIED,
-      consentGiven: true,
+  // Checklist items for duplicate candidate
+  const dupChecklistDefs = [
+    { code: 'ID_MATCH', label: 'ID proof matches applicant name', required: true },
+    { code: 'PHOTO_CLEAR', label: 'Photo is clear and recent', required: true },
+    { code: 'CERT_GENUINE', label: 'Qualification certificate is genuine', required: true },
+    { code: 'COUNCIL_REG', label: 'Nursing council registration verified', required: true },
+    { code: 'EXP_CHECK', label: 'Experience claims checked', required: true },
+    { code: 'REF_CALL', label: 'Reference verification call completed', required: true },
+  ];
+  for (const def of dupChecklistDefs) {
+    await prisma.checklistItem.create({
+      data: {
+        candidateId: dupCandidate.id,
+        code: def.code,
+        label: def.label,
+        required: def.required,
+        status: VerificationStatus.PENDING,
+      },
+    });
+  }
+
+  // Stage history for duplicate candidate
+  await prisma.stageHistory.create({
+    data: {
+      candidateId: dupCandidate.id,
+      fromStage: Stage.APPLIED,
+      toStage: Stage.APPLIED,
+      reasonNote: 'Application submitted successfully via career portal.',
+      changedById: admin.id,
+      changedByName: 'System Application Flow',
     },
   });
 
