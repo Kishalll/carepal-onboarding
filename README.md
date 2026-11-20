@@ -53,7 +53,7 @@ The system runs as an npm workspaces monorepo with two independent web applicati
 | Service | URL / Port | Purpose | Default Credentials |
 | :--- | :--- | :--- | :--- |
 | **Candidate Portal** | `http://localhost:3000` | Application form & interview booking | Public access |
-| **Admin Portal** | `http://localhost:3001` | Kanban board, verification, duplicates | `admin@thecarepal.test` / `CarePalAdmin2026!` |
+| **Admin Portal** | `http://localhost:3001` | Kanban board, verification, duplicates | `admin@thecarepal.test` / `test!123` (from `.env`) |
 | **Mailpit Web UI** | `http://localhost:8025` | Local email delivery inspector | Public access |
 | **Mailpit SMTP** | `localhost:1025` | Local mail transfer agent | No auth required |
 | **PostgreSQL** | `localhost:5432` | Relational database (`carepal_db`) | `carepal` / `carepal_secret` |
