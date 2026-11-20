@@ -164,6 +164,21 @@ describe('E2E: Full Candidate Hiring Lifecycle (Apply to Onboarded)', () => {
   });
 
   it('Step 8: Candidate opens self-service booking page and claims an open slot', async () => {
+    // Ensure an open interview slot is created by admin for this candidate
+    const slotStartTime = new Date(Date.now() + 86400000 * 4);
+    const slotEndTime = new Date(slotStartTime.getTime() + 30 * 60000);
+    const createSlotRes = await fetch(`${adminBase}/api/slots`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+      body: JSON.stringify({
+        startTime: slotStartTime.toISOString(),
+        endTime: slotEndTime.toISOString(),
+        interviewerName: `Dr. Lifecycle Lead ${Date.now()}`,
+        mode: 'VIDEO',
+      }),
+    });
+    assert.strictEqual(createSlotRes.status, 201);
+
     // Fetch available slots
     const bookingDetailsRes = await fetch(`${userBase}/api/booking/${applicationId}`);
     assert.strictEqual(bookingDetailsRes.status, 200);

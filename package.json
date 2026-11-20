@@ -17,7 +17,11 @@
     "seed": "npm run seed --workspace=@carepal/shared",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "test": "node --test tests/unit/*.test.mjs && node --test tests/integration/api.test.mjs && node --test tests/e2e/lifecycle.test.mjs",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:integration": "node --test tests/integration/api.test.mjs",
+    "test:e2e": "node --test tests/e2e/lifecycle.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

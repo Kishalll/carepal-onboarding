@@ -165,14 +165,15 @@ npm run dev
 The repository includes 56 automated tests built on the native Node.js test runner (`node:test`):
 
 ```bash
-# Run unit test suite (36 tests, pure logic, runs in ~200ms)
-node --test tests/unit/*.test.mjs
+# Run all test suites in sequence (unit, integration, and e2e lifecycle)
+npm test
+# or
+npm run test
 
-# Run API endpoint integration suite (10 tests, requires running servers)
-node --test tests/integration/api.test.mjs
-
-# Run full end-to-end candidate lifecycle journey (10 steps)
-node --test tests/e2e/lifecycle.test.mjs
+# Run individual test suites:
+npm run test:unit         # 36 pure logic tests (runs in ~200ms)
+npm run test:integration  # 10 API endpoint tests (requires running containers)
+npm run test:e2e          # 10 full lifecycle journey steps (requires running containers)
 ```
 
 ---
